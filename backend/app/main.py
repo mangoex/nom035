@@ -29,6 +29,10 @@ def debug_exception_handler(request: Request, exc: Exception):
         }
     )
 
+@app.get("/api/debug-version")
+def debug_version():
+    return {"version": "v2-debug-exception-handler"}
+
 # CORS configuration
 origins = [
     "http://localhost:5173",
