@@ -70,7 +70,6 @@ def register(user_in: UserRegister, response: Response, db: Session = Depends(ge
         value=access_token,
         httponly=True,
         max_age=60 * 60 * 24,  # 1 day
-        expires=60 * 60 * 24,
         samesite="lax",
         secure=False  # Set to True in production with HTTPS
     )
@@ -93,7 +92,6 @@ def login(user_in: UserLogin, response: Response, db: Session = Depends(get_db))
         value=access_token,
         httponly=True,
         max_age=60 * 60 * 24,  # 1 day
-        expires=60 * 60 * 24,
         samesite="lax",
         secure=False  # Set to True in production with HTTPS
     )
