@@ -6,7 +6,8 @@ import {
   ShieldAlert, 
   HelpCircle,
   FileCheck2,
-  AlertTriangle
+  AlertTriangle,
+  ClipboardCheck
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
