@@ -1,0 +1,399 @@
+# backend/app/api/endpoints/survey.py
+import secrets
+import io
+import pandas as pd
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
+from backend.app.db.session import get_db
+from backend.app.db.models import User, Company, SurveySession, SurveyResponse, ActionPlan
+from backend.app.schemas.survey import SurveySessionOut, SurveyResponseCreate
+from backend.app.core.auth import get_current_user, get_current_admin
+from backend.app.core.nom035_engine import calculate_survey_scores, evaluate_guia_i
+
+router = APIRouter()
+
+# --- ADMIN ENDPOINTS ---
+
+@router.post("/session", response_model=SurveySessionOut)
+def create_survey_session(
+    guide_type: str, # 'GUIA_I', 'GUIA_II', 'GUIA_III'
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    if guide_type not in ("GUIA_I", "GUIA_II", "GUIA_III"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tipo de guía inválido. Debe ser GUIA_I, GUIA_II, o GUIA_III."
+        )
+
+    # Deactivate any previous session of the same type for this company
+    previous_sessions = db.query(SurveySession).filter(
+        SurveySession.company_id == current_user.company_id,
+        SurveySession.guide_type == guide_type,
+        SurveySession.is_active == True
+    ).all()
+    for s in previous_sessions:
+        s.is_active = False
+    
+    # Generate new link hash
+    link_hash = secrets.token_hex(16)
+    
+    session = SurveySession(
+        company_id=current_user.company_id,
+        guide_type=guide_type,
+        link_hash=link_hash,
+        is_active=True
+    )
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
+@router.get("/sessions", response_model=list[SurveySessionOut])
+def get_survey_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    return db.query(SurveySession).filter(SurveySession.company_id == current_user.company_id).all()
+
+# --- CSV TEMPLATE & INGESTION ---
+
+@router.get("/csv/template")
+def download_csv_template(
+    guide_type: str, # 'GUIA_I', 'GUIA_II', 'GUIA_III'
+    current_user: User = Depends(get_current_admin)
+):
+    if guide_type not in ("GUIA_I", "GUIA_II", "GUIA_III"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tipo de guía inválido. Debe ser GUIA_I, GUIA_II, o GUIA_III."
+        )
+
+    # Base columns
+    cols = ["edad_rango", "genero", "departamento", "puesto"]
+    
+    if guide_type == "GUIA_I":
+        question_count = 20
+    elif guide_type == "GUIA_II":
+        question_count = 46
+    else:
+        question_count = 72
+        
+    for i in range(1, question_count + 1):
+        cols.append(f"q{i}")
+        
+    # Generate a DataFrame with columns and one placeholder row
+    placeholder_row = {
+        "edad_rango": "26-35",
+        "genero": "Masculino",
+        "departamento": "Operaciones",
+        "puesto": "Supervisor"
+    }
+    
+    for i in range(1, question_count + 1):
+        if guide_type == "GUIA_I":
+            placeholder_row[f"q{i}"] = "No"  # Binary Sí/No
+        else:
+            placeholder_row[f"q{i}"] = "Siempre"  # Likert scale
+            
+    df = pd.DataFrame([placeholder_row], columns=cols)
+    
+    # Save df to buffer
+    stream = io.StringIO()
+    df.to_csv(stream, index=False, encoding="utf-8-sig")
+    
+    response = StreamingResponse(
+        iter([stream.getvalue()]),
+        media_type="text/csv"
+    )
+    response.headers["Content-Disposition"] = f"attachment; filename=layout_{guide_type.lower()}.csv"
+    return response
+
+@router.post("/csv/upload")
+def upload_csv_results(
+    guide_type: str, # 'GUIA_I', 'GUIA_II', 'GUIA_III'
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    if guide_type not in ("GUIA_I", "GUIA_II", "GUIA_III"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tipo de guía inválido. Debe ser GUIA_I, GUIA_II, o GUIA_III."
+        )
+        
+    try:
+        # Read uploaded file
+        contents = file.file.read()
+        df = pd.read_csv(io.BytesIO(contents), encoding="utf-8-sig")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Error al leer el archivo CSV: {str(e)}"
+        )
+
+    # Validate columns
+    required_cols = ["edad_rango", "genero", "departamento", "puesto"]
+    missing_cols = [col for col in required_cols if col not in df.columns]
+    if missing_cols:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Columnas demográficas faltantes: {', '.join(missing_cols)}"
+        )
+
+    if guide_type == "GUIA_I":
+        question_count = 20
+    elif guide_type == "GUIA_II":
+        question_count = 46
+    else:
+        question_count = 72
+
+    missing_questions = [f"q{i}" for i in range(1, question_count + 1) if f"q{i}" not in df.columns]
+    if missing_questions:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Preguntas faltantes en el layout para {guide_type}: {', '.join(missing_questions)}"
+        )
+
+    records_created = 0
+    errors = []
+
+    for idx, row in df.iterrows():
+        try:
+            # Extract demographics
+            demographics = {
+                "age_range": str(row["edad_rango"]),
+                "gender": str(row["genero"]),
+                "department": str(row["departamento"]),
+                "position": str(row["puesto"])
+            }
+            
+            # Extract answers
+            answers = {}
+            for i in range(1, question_count + 1):
+                col_name = f"q{i}"
+                answers[col_name] = row[col_name]
+                
+            # Perform calculation
+            if guide_type == "GUIA_I":
+                results = evaluate_guia_i(answers)
+                # Create clinical referral task if triggered
+                if results["requires_attention"]:
+                    referral_task = ActionPlan(
+                        company_id=current_user.company_id,
+                        category_flagged="Acontecimientos Traumáticos Severos",
+                        domain_flagged="Sección I, II, III o IV",
+                        intervention_level="third_level",
+                        status="pending",
+                        description=(
+                            "Se identificó un colaborador (Carga Masiva) que requiere atención clínica tras responder a la "
+                            "Guía de Referencia I. Es necesario realizar la canalización formal (médica/psicológica) "
+                            "y documentar el seguimiento."
+                        )
+                    )
+                    db.add(referral_task)
+            else:
+                results = calculate_survey_scores(guide_type, answers)
+                
+                # Check for high-risk categories and suggest tasks
+                for cat_name, risk in results["category_risks"].items():
+                    if risk in ("Medio", "Alto", "Muy Alto"):
+                        exists = db.query(ActionPlan).filter(
+                            ActionPlan.company_id == current_user.company_id,
+                            ActionPlan.category_flagged == cat_name,
+                            ActionPlan.status != "completed"
+                        ).first()
+                        if not exists:
+                            suggested_task = ActionPlan(
+                                company_id=current_user.company_id,
+                                category_flagged=cat_name,
+                                intervention_level="first_level" if risk == "Medio" else "second_level",
+                                status="pending",
+                                description=f"Acción recomendada para mitigar el riesgo {risk} detectado en la Categoría: {cat_name}."
+                            )
+                            db.add(suggested_task)
+
+            # Create Response entry
+            response_model = SurveyResponse(
+                company_id=current_user.company_id,
+                survey_session_id=None,  # None for bulk CSV uploads
+                demographics=demographics,
+                answers=answers,
+                calculated_scores=results
+            )
+            db.add(response_model)
+            records_created += 1
+
+        except Exception as ex:
+            errors.append(f"Fila {idx + 2}: {str(ex)}")
+
+    db.commit()
+    
+    return {
+        "success": True,
+        "records_created": records_created,
+        "errors": errors
+    }
+
+# --- PUBLIC ENDPOINTS ---
+
+@router.get("/public/{link_hash}")
+def get_public_session_details(link_hash: str, db: Session = Depends(get_db)):
+    session = db.query(SurveySession).filter(
+        SurveySession.link_hash == link_hash,
+        SurveySession.is_active == True
+    ).first()
+    
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Liga de encuesta no válida o expirada."
+        )
+        
+    company = db.query(Company).filter(Company.id == session.company_id).first()
+    return {
+        "company_name": company.name,
+        "guide_type": session.guide_type,
+        "session_id": session.id
+    }
+
+@router.post("/public/{link_hash}", status_code=status.HTTP_201_CREATED)
+def submit_public_response(
+    link_hash: str,
+    response_in: SurveyResponseCreate,
+    db: Session = Depends(get_db)
+):
+    session = db.query(SurveySession).filter(
+        SurveySession.link_hash == link_hash,
+        SurveySession.is_active == True
+    ).first()
+    
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Liga de encuesta no válida o expirada."
+        )
+
+    company_id = session.company_id
+    guide_type = session.guide_type
+
+    # Calculate scores
+    if guide_type == "GUIA_I":
+        results = evaluate_guia_i(response_in.answers)
+        if results["requires_attention"]:
+            referral_task = ActionPlan(
+                company_id=company_id,
+                category_flagged="Acontecimientos Traumáticos Severos",
+                domain_flagged="Sección I, II, III o IV",
+                intervention_level="third_level",
+                status="pending",
+                description=(
+                    "Se identificó un colaborador que requiere atención clínica tras responder a la "
+                    "Guía de Referencia I. Es necesario realizar la canalización formal (médica/psicológica) "
+                    "y documentar el seguimiento manteniendo la confidencialidad."
+                )
+            )
+            db.add(referral_task)
+    else:
+        results = calculate_survey_scores(guide_type, response_in.answers)
+        
+        # Suggest task
+        for cat_name, risk in results["category_risks"].items():
+            if risk in ("Medio", "Alto", "Muy Alto"):
+                exists = db.query(ActionPlan).filter(
+                    ActionPlan.company_id == company_id,
+                    ActionPlan.category_flagged == cat_name,
+                    ActionPlan.status != "completed"
+                ).first()
+                if not exists:
+                    suggested_task = ActionPlan(
+                        company_id=company_id,
+                        category_flagged=cat_name,
+                        intervention_level="first_level" if risk == "Medio" else "second_level",
+                        status="pending",
+                        description=f"Acción recomendada para mitigar el riesgo {risk} detectado en la Categoría: {cat_name}."
+                    )
+                    db.add(suggested_task)
+
+    # Save response
+    response_model = SurveyResponse(
+        company_id=company_id,
+        survey_session_id=session.id,
+        demographics=response_in.demographics.model_dump(),
+        answers=response_in.answers,
+        calculated_scores=results
+    )
+    db.add(response_model)
+    db.commit()
+    return {"message": "Encuesta registrada con éxito."}
+
+# --- DASHBOARD & STATISTICS ---
+
+@router.get("/stats")
+def get_survey_statistics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    responses = db.query(SurveyResponse).filter(
+        SurveyResponse.company_id == current_user.company_id
+    ).all()
+    
+    if not responses:
+        return {
+            "total_responses": 0,
+            "requires_clinical_referral_count": 0,
+            "final_risk_distribution": {},
+            "category_averages": {},
+            "domain_averages": {}
+        }
+        
+    total = len(responses)
+    clinical_referrals = 0
+    final_risks = {}
+    category_scores_sum = {}
+    category_counts = {}
+    domain_scores_sum = {}
+    domain_counts = {}
+    
+    for r in responses:
+        scores = r.calculated_scores
+        if "requires_attention" in scores:
+            if scores["requires_attention"]:
+                clinical_referrals += 1
+        
+        if "final_risk" in scores:
+            risk = scores["final_risk"]
+            final_risks[risk] = final_risks.get(risk, 0) + 1
+            
+        if "category_scores" in scores:
+            for cat, val in scores["category_scores"].items():
+                category_scores_sum[cat] = category_scores_sum.get(cat, 0.0) + val
+                category_counts[cat] = category_counts.get(cat, 0) + 1
+                
+        if "domain_scores" in scores:
+            for dom, val in scores["domain_scores"].items():
+                domain_scores_sum[dom] = domain_scores_sum.get(dom, 0.0) + val
+                domain_counts[dom] = domain_counts.get(dom, 0) + 1
+
+    category_averages = {
+        cat: round(category_scores_sum[cat] / category_counts[cat], 2)
+        for cat in category_scores_sum
+    }
+    domain_averages = {
+        dom: round(domain_scores_sum[dom] / domain_counts[dom], 2)
+        for dom in domain_scores_sum
+    }
+    
+    final_risk_distribution = {
+        risk: round((count / total) * 100, 2)
+        for risk, count in final_risks.items()
+    }
+    
+    return {
+        "total_responses": total,
+        "requires_clinical_referral_count": clinical_referrals,
+        "final_risk_distribution": final_risk_distribution,
+        "category_averages": category_averages,
+        "domain_averages": domain_averages
+    }

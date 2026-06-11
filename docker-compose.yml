@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - nom035_data:/app
+    environment:
+      - PORT=8000
+      - DATABASE_URL=sqlite:////app/nom035.db
+      - SECRET_KEY=production-secret-nom035-key-change-this-vps
+    restart: always
+
+volumes:
+  nom035_data:
