@@ -1,9 +1,10 @@
 # backend/app/main.py
 import os
-from fastapi import FastAPI, HTTPException
+import traceback
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from backend.app.db.session import engine, Base
 from backend.app.api.endpoints import auth, company, survey, action_plan
 
@@ -15,6 +16,18 @@ app = FastAPI(
     description="Backend en Python para el procesamiento psicométrico y cumplimiento de la NOM-035-STPS-2018",
     version="1.0.0"
 )
+
+# Exception handler for remote debugging
+@app.exception_handler(Exception)
+def debug_exception_handler(request: Request, exc: Exception):
+    tb = traceback.format_exc()
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": f"Debug Exception: {str(exc)}",
+            "traceback": tb.split("\n")
+        }
+    )
 
 # CORS configuration
 origins = [
