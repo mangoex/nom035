@@ -56,8 +56,9 @@ app.include_router(survey.router, prefix="/api/survey", tags=["Survey"])
 app.include_router(action_plan.router, prefix="/api/action_plan", tags=["Action Plan"])
 
 # Serve frontend build in production (single-container mode)
-backend_root = os.path.dirname(os.path.dirname(__file__))  # points to /app/backend
-frontend_dist = os.path.join(backend_root, "frontend", "dist")
+backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # points to backend
+project_root = os.path.dirname(backend_root) # points to NOM-035
+frontend_dist = os.path.join(project_root, "frontend", "dist")
 
 if os.path.exists(frontend_dist):
     # Mount assets folder
