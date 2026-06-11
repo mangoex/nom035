@@ -38,10 +38,20 @@ export default function Register() {
       navigate("/dashboard");
     } catch (err) {
       console.error(err);
-      setError(
-        err.response?.data?.detail || 
-        "Error en el registro. Verifique sus datos."
-      );
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+        if (Array.isArray(detail)) {
+          const msg = detail.map(d => {
+            const field = d.loc && d.loc.length > 1 ? d.loc[d.loc.length - 1] : "";
+            return `${field ? field + ": " : ""}${d.msg}`;
+          }).join(" | ");
+          setError(msg);
+        } else {
+          setError(detail);
+        }
+      } else {
+        setError("Error en el registro. Verifique sus datos.");
+      }
     } finally {
       setLoading(false);
     }
