@@ -441,14 +441,30 @@ def get_survey_statistics(
         for risk, count in final_risks.items()
     }
     
+    # Calculate global average score and its risk
+    total_score = sum(r.calculated_scores.get("final_score", 0) for r in responses if "final_score" in r.calculated_scores)
+    global_score_average = round(total_score / total, 2) if total > 0 else 0
+    global_score_risk = get_risk_level(global_score_average, thresholds["final"])
+    
+    # Extract unique filter options from ALL responses (unfiltered) to populate dropdowns
+    available_filters = {
+        "age_ranges": sorted(list(set(r.demographics.get("age_range", "") for r in all_responses if r.demographics.get("age_range")))),
+        "genders": sorted(list(set(r.demographics.get("gender", "") for r in all_responses if r.demographics.get("gender")))),
+        "departments": sorted(list(set(r.demographics.get("department", "") for r in all_responses if r.demographics.get("department")))),
+        "positions": sorted(list(set(r.demographics.get("position", "") for r in all_responses if r.demographics.get("position"))))
+    }
+    
     return {
         "total_responses": total,
         "requires_clinical_referral_count": clinical_referrals,
         "final_risk_distribution": final_risk_distribution,
+        "global_score_average": global_score_average,
+        "global_score_risk": global_score_risk,
         "category_averages": category_averages,
         "category_risks": category_risks_dict,
         "domain_averages": domain_averages,
-        "domain_risks": domain_risks_dict
+        "domain_risks": domain_risks_dict,
+        "available_filters": available_filters
     }
 
 @router.get("/responses")

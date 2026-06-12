@@ -7,7 +7,9 @@ import {
   FileCheck2,
   AlertTriangle,
   ClipboardCheck,
-  Filter
+  Filter,
+  XCircle,
+  BarChart2
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -19,7 +21,6 @@ import {
   XAxis, 
   YAxis, 
   Tooltip, 
-  Legend,
   CartesianGrid
 } from "recharts";
 import api from "../utils/api";
@@ -87,6 +88,10 @@ export default function Dashboard() {
     setFilters({ ...filters, [e.target.name]: e.target.value });
   };
 
+  const clearFilters = () => {
+    setFilters({ age_range: "", gender: "", department: "", position: "" });
+  };
+
   if (loading && !company) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--bg-primary)" }}>
@@ -100,12 +105,6 @@ export default function Dashboard() {
     name,
     value
   }));
-
-  // Helper to create Custom Bar shape with dynamic colors
-  const CustomBar = (props) => {
-    const { fill, x, y, width, height, risk } = props;
-    return <rect x={x} y={y} width={width} height={height} fill={RISK_COLORS[risk] || fill} rx={4} ry={4} />;
-  };
 
   // Convert category averages to recharts format
   const barDataCategories = Object.entries(stats?.category_averages || {}).map(([name, value]) => ({
@@ -135,6 +134,9 @@ export default function Dashboard() {
     }
     return null;
   };
+
+  // Extract available filters (dynamic)
+  const availableFilters = stats?.available_filters || { age_ranges: [], genders: [], departments: [], positions: [] };
 
   return (
     <div className="app-container">
@@ -167,44 +169,40 @@ export default function Dashboard() {
           
           <select name="age_range" value={filters.age_range} onChange={handleFilterChange} className="form-input" style={{ width: "auto", padding: "8px 12px", minWidth: "140px" }}>
             <option value="">Todas las edades</option>
-            <option value="Menor de 25">Menor de 25 años</option>
-            <option value="26-35">26 a 35 años</option>
-            <option value="36-45">36 a 45 años</option>
-            <option value="46-55">46 a 55 años</option>
-            <option value="Mas de 55">Más de 55 años</option>
+            {availableFilters.age_ranges.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
 
           <select name="gender" value={filters.gender} onChange={handleFilterChange} className="form-input" style={{ width: "auto", padding: "8px 12px", minWidth: "140px" }}>
             <option value="">Todos los géneros</option>
-            <option value="Femenino">Femenino</option>
-            <option value="Masculino">Masculino</option>
-            <option value="Otro">Otro / Prefiero no decir</option>
+            {availableFilters.genders.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
 
           <select name="position" value={filters.position} onChange={handleFilterChange} className="form-input" style={{ width: "auto", padding: "8px 12px", minWidth: "140px" }}>
             <option value="">Todos los puestos</option>
-            <option value="Operativo">Operativo (Auxiliar, Analista)</option>
-            <option value="Supervisor">Supervisor / Coordinador</option>
-            <option value="Gerencial">Gerente / Director</option>
+            {availableFilters.positions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
           
-          <input 
-            type="text" 
-            name="department" 
-            placeholder="Filtrar por Departamento..." 
-            value={filters.department} 
-            onChange={handleFilterChange} 
-            className="form-input" 
-            style={{ width: "auto", padding: "8px 12px", minWidth: "200px" }}
-          />
+          <select name="department" value={filters.department} onChange={handleFilterChange} className="form-input" style={{ width: "auto", padding: "8px 12px", minWidth: "180px" }}>
+            <option value="">Todos los departamentos</option>
+            {availableFilters.departments.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+          </select>
 
-          {loading && <span style={{ fontSize: "13px", color: "var(--color-primary)", fontWeight: "600", marginLeft: "auto" }}>Actualizando...</span>}
+          {/* Botón limpiar filtros */}
+          <button 
+            onClick={clearFilters} 
+            className="btn btn-secondary" 
+            style={{ padding: "8px 12px", display: "flex", alignItems: "center", gap: "6px", marginLeft: "auto" }}
+          >
+            <XCircle size={16} />
+            Limpiar Filtros
+          </button>
         </div>
 
         {/* KPI Summary Cards */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "20px", marginBottom: "24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "20px", marginBottom: "24px" }}>
+          
           <div className="glass-card animate-fade-in" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div style={{ width: "48px", height: "48px", borderRadius: "var(--radius-md)", backgroundColor: "rgba(99, 102, 241, 0.1)", display: "flex", alignItems: "center", justifyitems: "center", justifyContent: "center" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "var(--radius-md)", backgroundColor: "rgba(99, 102, 241, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Users size={24} style={{ color: "var(--color-primary)" }} />
             </div>
             <div>
@@ -214,7 +212,7 @@ export default function Dashboard() {
           </div>
 
           <div className="glass-card animate-fade-in" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div style={{ width: "48px", height: "48px", borderRadius: "var(--radius-md)", backgroundColor: "rgba(16, 185, 129, 0.1)", display: "flex", alignItems: "center", justifyitems: "center", justifyContent: "center" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "var(--radius-md)", backgroundColor: "rgba(16, 185, 129, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <FileCheck2 size={24} style={{ color: "var(--color-success)" }} />
             </div>
             <div>
@@ -227,8 +225,28 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Calificación Final Promedio Card */}
           <div className="glass-card animate-fade-in" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div style={{ width: "48px", height: "48px", borderRadius: "var(--radius-md)", backgroundColor: "rgba(239, 68, 68, 0.1)", display: "flex", alignItems: "center", justifyitems: "center", justifyContent: "center" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "var(--radius-md)", backgroundColor: RISK_COLORS[stats?.global_score_risk] ? `${RISK_COLORS[stats?.global_score_risk]}20` : "rgba(239, 68, 68, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <BarChart2 size={24} style={{ color: RISK_COLORS[stats?.global_score_risk] || "var(--color-primary)" }} />
+            </div>
+            <div>
+              <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "500" }}>Puntaje Final Promedio</span>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "2px" }}>
+                <h3 style={{ fontSize: "24px", fontWeight: "800" }}>
+                  {stats?.global_score_average || 0}
+                </h3>
+                {stats?.global_score_risk && (
+                  <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", backgroundColor: `${RISK_COLORS[stats.global_score_risk]}20`, color: RISK_COLORS[stats.global_score_risk] }}>
+                    {stats.global_score_risk}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-card animate-fade-in" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "var(--radius-md)", backgroundColor: "rgba(239, 68, 68, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <ShieldAlert size={24} style={{ color: "var(--color-danger)" }} />
             </div>
             <div>
@@ -238,6 +256,7 @@ export default function Dashboard() {
               </h3>
             </div>
           </div>
+
         </div>
 
         {/* Charts Section */}
@@ -280,7 +299,11 @@ export default function Dashboard() {
                       <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
                       <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="Puntaje" shape={<CustomBar />} />
+                      <Bar dataKey="Puntaje" radius={[4, 4, 0, 0]}>
+                        {barDataCategories.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={RISK_COLORS[entry.Riesgo] || "#cbd5e1"} />
+                        ))}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -297,7 +320,11 @@ export default function Dashboard() {
                     <XAxis type="number" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
                     <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="Puntaje" shape={<CustomBar />} barSize={20} />
+                    <Bar dataKey="Puntaje" radius={[0, 4, 4, 0]} barSize={20}>
+                        {barDataDomains.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={RISK_COLORS[entry.Riesgo] || "#cbd5e1"} />
+                        ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
