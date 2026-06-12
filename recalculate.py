@@ -1,7 +1,7 @@
 import sys
 from sqlalchemy.orm import Session
 from backend.app.db.session import SessionLocal
-from backend.app.models import SurveyResponse
+from backend.app.db.models import SurveyResponse
 from backend.app.core.nom035_engine import calculate_survey_scores, evaluate_guia_i
 
 def recalculate_all_scores():

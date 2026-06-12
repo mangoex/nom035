@@ -126,7 +126,7 @@ GUIA_III_THRESHOLDS = {
         "Ambiente de trabajo": [5, 9, 11, 14],
         "Factores propios de la actividad": [15, 30, 45, 60],
         "Organización del tiempo de trabajo": [5, 7, 10, 13],
-        "Liderazgo y relaciones en el trabajo": [14, 29, 42, 55],
+        "Liderazgo y relaciones en el trabajo": [14, 29, 42, 58],
         "Entorno organizacional": [10, 14, 18, 23]
     },
     "domains": {

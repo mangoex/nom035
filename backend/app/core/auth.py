@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 from backend.app.db.session import get_db
 from backend.app.db.models import User
 
-SECRET_KEY = os.getenv("SECRET_KEY", "super-secret-nom-035-key-for-development-1234567890")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is missing. It must be set for production security.")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
 
