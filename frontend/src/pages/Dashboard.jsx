@@ -62,13 +62,13 @@ export default function Dashboard() {
   const [responses, setResponses] = useState([]);
   const [error, setError] = useState("");
   
-  // Filters
   const [filters, setFilters] = useState({
     age_range: "",
     gender: "",
     department: "",
     position: ""
   });
+  const [selectedRows, setSelectedRows] = useState([]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -111,6 +111,32 @@ export default function Dashboard() {
     setFilters({ age_range: "", gender: "", department: "", position: "" });
   };
 
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedRows(responses.map(r => r.id));
+    } else {
+      setSelectedRows([]);
+    }
+  };
+
+  const handleSelectRow = (id) => {
+    setSelectedRows(prev => 
+      prev.includes(id) ? prev.filter(rowId => rowId !== id) : [...prev, id]
+    );
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!window.confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} encuesta(s)?`)) return;
+    try {
+      await api.delete("/api/survey/responses/batch", { data: { response_ids: selectedRows } });
+      setSelectedRows([]);
+      fetchData(); // reload data
+    } catch (err) {
+      console.error(err);
+      setError("Error al eliminar las encuestas.");
+    }
+  };
+
   if (loading && !company) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--bg-primary)" }}>
@@ -127,14 +153,14 @@ export default function Dashboard() {
 
   // Convert category averages to recharts format
   const barDataCategories = Object.entries(stats?.category_averages || {}).map(([name, value]) => ({
-    name: name.length > 15 ? name.substring(0, 15) + "..." : name,
+    name: name.length > 50 ? name.substring(0, 50) + "..." : name,
     fullName: name,
     Puntaje: value,
     Riesgo: stats?.category_risks?.[name] || "Nulo"
   }));
 
   const barDataDomains = Object.entries(stats?.domain_averages || {}).map(([name, value]) => ({
-    name: name.length > 30 ? name.substring(0, 30) + "..." : name,
+    name: name.length > 50 ? name.substring(0, 50) + "..." : name,
     fullName: name,
     Puntaje: value,
     Riesgo: stats?.domain_risks?.[name] || "Nulo"
@@ -303,15 +329,15 @@ export default function Dashboard() {
 
               {/* Bar Chart: Category Averages */}
               <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Nivel de Riesgo por Categorías (Dimensiones)</h3>
+                <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Nivel de Riesgo por Categorías</h3>
                 <div style={{ width: "100%", height: "260px" }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barDataCategories}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                      <XAxis dataKey="name" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
-                      <YAxis stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
+                    <BarChart data={barDataCategories} layout="vertical" margin={{ left: 160, right: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
+                      <XAxis type="number" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
+                      <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" fontSize={11} tickLine={false} width={160} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="Puntaje" radius={[4, 4, 0, 0]}>
+                      <Bar dataKey="Puntaje" radius={[0, 4, 4, 0]} barSize={20}>
                         {barDataCategories.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={RISK_COLORS[entry.Riesgo] || "#cbd5e1"} />
                         ))}
@@ -325,12 +351,12 @@ export default function Dashboard() {
             {/* Domains Bar Chart */}
             <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
               <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Nivel de Riesgo por Dominios</h3>
-              <div style={{ width: "100%", height: "300px" }}>
+              <div style={{ width: "100%", height: "350px" }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barDataDomains} layout="vertical" margin={{ left: 200, right: 20 }}>
+                  <BarChart data={barDataDomains} layout="vertical" margin={{ left: 280, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
                     <XAxis type="number" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
-                    <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" fontSize={12} tickLine={false} width={200} />
+                    <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" fontSize={12} tickLine={false} width={280} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="Puntaje" radius={[0, 4, 4, 0]} barSize={20}>
                         {barDataDomains.map((entry, index) => (
@@ -342,41 +368,73 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Dimensions Radar Chart */}
+            {/* Dimensions Radar Chart & Heatmap */}
             {radarDataDimensions.length > 0 && (
-              <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Huella de Riesgo por Dimensiones (Anexos)</h3>
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "-12px" }}>Visualiza el balance de vulnerabilidades y fortalezas a un mayor nivel de detalle.</p>
-                <div style={{ width: "100%", height: "450px", position: "relative" }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarDataDimensions}>
-                      <PolarGrid stroke="var(--border-color)" />
-                      <PolarAngleAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
-                      <PolarRadiusAxis angle={30} domain={[0, 15]} tick={{ fill: "var(--text-muted)", fontSize: 10 }} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Radar
-                        name="Riesgo Promedio"
-                        dataKey="Puntaje"
-                        stroke="var(--color-primary)"
-                        fill="var(--color-primary)"
-                        fillOpacity={0.3}
-                      />
-                    </RadarChart>
-                  </ResponsiveContainer>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "24px", marginBottom: "24px" }}>
+                {/* Radar Chart */}
+                <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Huella de Riesgo por Dimensiones</h3>
+                  <div style={{ width: "100%", height: "450px", position: "relative" }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarDataDimensions}>
+                        <PolarGrid stroke="var(--border-color)" />
+                        <PolarAngleAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} />
+                        <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{ fill: "var(--text-muted)", fontSize: 10 }} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Radar name="Riesgo" dataKey="Puntaje" stroke="var(--color-primary)" fill="var(--color-primary)" fillOpacity={0.3} />
+                      </RadarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Heatmap */}
+                <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto", maxHeight: "520px" }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Mapa de Calor: Dimensiones de Riesgo (Anexos)</h3>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                    {radarDataDimensions.map((dim, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "8px", backgroundColor: RISK_COLORS[dim.Riesgo] ? `${RISK_COLORS[dim.Riesgo]}15` : "transparent", borderLeft: `4px solid ${RISK_COLORS[dim.Riesgo] || "#cbd5e1"}` }}>
+                        <span style={{ fontSize: "13px", fontWeight: "500", color: "var(--text-primary)" }}>{dim.fullName}</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                          <span style={{ fontSize: "14px", fontWeight: "700" }}>{dim.Puntaje}</span>
+                          <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "12px", backgroundColor: RISK_COLORS[dim.Riesgo] ? `${RISK_COLORS[dim.Riesgo]}20` : "transparent", color: RISK_COLORS[dim.Riesgo] || "var(--text-primary)" }}>
+                            {dim.Riesgo}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Responses Table */}
             <div className="glass-card" style={{ overflow: "hidden" }}>
-              <div style={{ padding: "20px", borderBottom: "1px solid var(--border-color)" }}>
-                <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Detalle de Encuestas ({responses.length})</h3>
-                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>Mostrando respuestas individuales anonimizadas según la NOM-035.</p>
+              <div style={{ padding: "20px", borderBottom: "1px solid var(--border-color)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Detalle de Encuestas ({responses.length})</h3>
+                  <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>Mostrando respuestas individuales anonimizadas según la NOM-035.</p>
+                </div>
+                {selectedRows.length > 0 && (
+                  <button 
+                    onClick={handleDeleteSelected}
+                    className="btn btn-primary"
+                    style={{ backgroundColor: "var(--color-danger)", padding: "8px 16px", fontSize: "13px" }}
+                  >
+                    Eliminar seleccionados ({selectedRows.length})
+                  </button>
+                )}
               </div>
               <div style={{ overflowX: "auto" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
                   <thead style={{ backgroundColor: "rgba(99, 102, 241, 0.05)" }}>
                     <tr>
+                      <th style={{ padding: "12px 20px", width: "40px" }}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedRows.length === responses.length && responses.length > 0} 
+                          onChange={handleSelectAll} 
+                        />
+                      </th>
                       <th style={{ padding: "12px 20px", textAlign: "left", color: "var(--text-secondary)", fontWeight: "600" }}>ID</th>
                       <th style={{ padding: "12px 20px", textAlign: "left", color: "var(--text-secondary)", fontWeight: "600" }}>Fecha</th>
                       <th style={{ padding: "12px 20px", textAlign: "left", color: "var(--text-secondary)", fontWeight: "600" }}>Edad / Género</th>
@@ -387,7 +445,14 @@ export default function Dashboard() {
                   </thead>
                   <tbody>
                     {responses.map((r, i) => (
-                      <tr key={r.id} style={{ borderBottom: "1px solid var(--border-color)", backgroundColor: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
+                      <tr key={r.id} style={{ borderBottom: "1px solid var(--border-color)", backgroundColor: selectedRows.includes(r.id) ? "rgba(239, 68, 68, 0.05)" : (i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)") }}>
+                        <td style={{ padding: "14px 20px" }}>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedRows.includes(r.id)} 
+                            onChange={() => handleSelectRow(r.id)} 
+                          />
+                        </td>
                         <td style={{ padding: "14px 20px", color: "var(--text-secondary)" }}>#{r.id}</td>
                         <td style={{ padding: "14px 20px" }}>{new Date(r.created_at).toLocaleDateString()}</td>
                         <td style={{ padding: "14px 20px" }}>{r.demographics.age_range} • {r.demographics.gender}</td>

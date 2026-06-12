@@ -538,3 +538,29 @@ def get_survey_responses_list(
         })
         
     return {"responses": data}
+
+from pydantic import BaseModel
+
+class DeleteResponsesRequest(BaseModel):
+    response_ids: list[int]
+
+@router.delete("/responses/batch")
+def delete_survey_responses_batch(
+    payload: DeleteResponsesRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    responses = db.query(SurveyResponse).filter(
+        SurveyResponse.id.in_(payload.response_ids),
+        SurveyResponse.company_id == current_user.company_id
+    ).all()
+    
+    if not responses:
+        raise HTTPException(status_code=404, detail="No se encontraron respuestas para eliminar.")
+        
+    deleted_count = len(responses)
+    for r in responses:
+        db.delete(r)
+        
+    db.commit()
+    return {"message": f"{deleted_count} encuestas eliminadas con éxito."}
