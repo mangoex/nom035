@@ -323,7 +323,9 @@ from typing import Optional
 
 # --- DASHBOARD & STATISTICS ---
 
-def filter_responses(responses, age_range, gender, department, position):
+from datetime import datetime
+
+def filter_responses(responses, age_range, gender, department, position, start_date=None, end_date=None):
     filtered = []
     for r in responses:
         d = r.demographics
@@ -331,6 +333,21 @@ def filter_responses(responses, age_range, gender, department, position):
         if gender and d.get("gender") != gender: continue
         if department and d.get("department") != department: continue
         if position and d.get("position") != position: continue
+        
+        if start_date:
+            try:
+                sd = datetime.fromisoformat(start_date)
+                if r.created_at.date() < sd.date(): continue
+            except ValueError:
+                pass
+                
+        if end_date:
+            try:
+                ed = datetime.fromisoformat(end_date)
+                if r.created_at.date() > ed.date(): continue
+            except ValueError:
+                pass
+                
         filtered.append(r)
     return filtered
 
@@ -340,6 +357,8 @@ def get_survey_statistics(
     gender: Optional[str] = None,
     department: Optional[str] = None,
     position: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
@@ -347,7 +366,7 @@ def get_survey_statistics(
         SurveyResponse.company_id == current_user.company_id
     ).all()
     
-    responses = filter_responses(all_responses, age_range, gender, department, position)
+    responses = filter_responses(all_responses, age_range, gender, department, position, start_date, end_date)
     
     if not responses:
         return {
@@ -478,22 +497,24 @@ def get_survey_statistics(
     }
 
 @router.get("/responses")
-def get_survey_responses_list(
+def get_survey_responses(
     age_range: Optional[str] = None,
     gender: Optional[str] = None,
     department: Optional[str] = None,
     position: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
     all_responses = db.query(SurveyResponse).filter(
         SurveyResponse.company_id == current_user.company_id
-    ).order_by(SurveyResponse.created_at.desc()).all()
+    ).all()
     
-    responses = filter_responses(all_responses, age_range, gender, department, position)
+    filtered_responses = filter_responses(all_responses, age_range, gender, department, position, start_date, end_date)
     
     data = []
-    for r in responses:
+    for r in filtered_responses:
         scores = r.calculated_scores
         final_risk = scores.get("final_risk", "N/A")
         if "requires_attention" in scores and scores["requires_attention"]:

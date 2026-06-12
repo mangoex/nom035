@@ -75,7 +75,9 @@ export default function Dashboard() {
     age_range: "",
     gender: "",
     department: "",
-    position: ""
+    position: "",
+    start_date: "",
+    end_date: ""
   });
   const [selectedRows, setSelectedRows] = useState([]);
 
@@ -88,6 +90,8 @@ export default function Dashboard() {
       if (filters.gender) params.append("gender", filters.gender);
       if (filters.department) params.append("department", filters.department);
       if (filters.position) params.append("position", filters.position);
+      if (filters.start_date) params.append("start_date", filters.start_date);
+      if (filters.end_date) params.append("end_date", filters.end_date);
 
       const qs = params.toString();
       const query = qs ? `?${qs}` : "";
@@ -121,7 +125,7 @@ export default function Dashboard() {
   };
 
   const clearFilters = () => {
-    setFilters({ age_range: "", gender: "", department: "", position: "" });
+    setFilters({ age_range: "", gender: "", department: "", position: "", start_date: "", end_date: "" });
   };
 
   const handleSelectAll = (e) => {
@@ -242,6 +246,16 @@ export default function Dashboard() {
             <option value="">Todos los departamentos</option>
             {availableFilters.departments.map(opt => <option key={opt} value={opt}>{opt}</option>)}
           </select>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Desde:</span>
+            <input type="date" name="start_date" value={filters.start_date} onChange={handleFilterChange} className="form-input" style={{ padding: "8px", width: "130px" }} />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Hasta:</span>
+            <input type="date" name="end_date" value={filters.end_date} onChange={handleFilterChange} className="form-input" style={{ padding: "8px", width: "130px" }} />
+          </div>
 
           {/* Botón limpiar filtros */}
           <button 
