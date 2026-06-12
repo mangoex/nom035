@@ -1,5 +1,7 @@
 // frontend/src/pages/Dashboard.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { useReactToPrint } from "react-to-print";
+import { PrintableReport } from "../components/PrintableReport";
 import { 
   Users, 
   Activity, 
@@ -60,7 +62,14 @@ export default function Dashboard() {
   const [company, setCompany] = useState(null);
   const [stats, setStats] = useState(null);
   const [responses, setResponses] = useState([]);
+  const [tasks, setTasks] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
   const [error, setError] = useState("");
+  const componentRef = useRef();
+  const handlePrint = useReactToPrint({
+    content: () => componentRef.current,
+    documentTitle: "Reporte_NOM_035",
+  });
   
   const [filters, setFilters] = useState({
     age_range: "",
@@ -83,14 +92,18 @@ export default function Dashboard() {
       const qs = params.toString();
       const query = qs ? `?${qs}` : "";
 
-      const [compRes, statsRes, respRes] = await Promise.all([
+      const [compRes, statsRes, respRes, tasksRes, suggRes] = await Promise.all([
         api.get("/api/company/me"),
         api.get(`/api/survey/stats${query}`),
-        api.get(`/api/survey/responses${query}`)
+        api.get(`/api/survey/responses${query}`),
+        api.get("/api/action_plan/tasks"),
+        api.get("/api/action_plan/suggested")
       ]);
       setCompany(compRes.data);
       setStats(statsRes.data);
       setResponses(respRes.data.responses);
+      setTasks(tasksRes.data);
+      setSuggestions(suggRes.data.suggestions || []);
     } catch (err) {
       console.error(err);
       setError("Error al cargar la información del servidor.");
@@ -189,7 +202,12 @@ export default function Dashboard() {
               Diagnóstico psicosocial detallado de {company?.name}
             </p>
           </div>
-          <ThemeToggle />
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <button onClick={handlePrint} className="btn btn-primary" style={{ backgroundColor: "var(--color-primary)" }}>
+              Descargar Reporte PDF
+            </button>
+            <ThemeToggle />
+          </div>
         </header>
 
         {error && (
@@ -489,6 +507,17 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Hidden Printable Component */}
+      <div style={{ display: "none" }}>
+        <PrintableReport 
+          ref={componentRef} 
+          company={company} 
+          stats={stats} 
+          tasks={tasks} 
+          suggestions={suggestions} 
+        />
+      </div>
     </div>
   );
 }

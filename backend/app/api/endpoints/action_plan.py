@@ -140,6 +140,17 @@ def update_task(
     db.refresh(task)
     return task
 
+@router.delete("/tasks/all")
+def delete_all_tasks(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    deleted_count = db.query(ActionPlan).filter(
+        ActionPlan.company_id == current_user.company_id
+    ).delete()
+    db.commit()
+    return {"message": f"Tablero limpiado. {deleted_count} tareas eliminadas."}
+
 @router.delete("/tasks/{task_id}")
 def delete_task(
     task_id: int,

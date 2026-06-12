@@ -161,6 +161,17 @@ export default function ActionPlanTracker() {
     }
   };
 
+  const handleClearBoard = async () => {
+    if (!confirm("⚠️ ATENCIÓN: Esta acción borrará permanentemente TODAS las tareas de tu Plan de Acción.\n\n¿Estás completamente seguro de continuar?")) return;
+    try {
+      await api.delete("/api/action_plan/tasks/all");
+      setTasks([]);
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo limpiar el tablero.");
+    }
+  };
+
   const pendingTasks = tasks.filter(t => t.status === "pending");
   const inProgressTasks = tasks.filter(t => t.status === "in_progress");
   const completedTasks = tasks.filter(t => t.status === "completed");
@@ -269,6 +280,9 @@ export default function ActionPlanTracker() {
             </p>
           </div>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <button onClick={handleClearBoard} className="btn btn-secondary" style={{ color: "var(--color-danger)", borderColor: "var(--color-danger)", backgroundColor: "transparent" }}>
+              <Trash2 size={16} /> Limpiar Tablero
+            </button>
             <button onClick={() => setShowModal(true)} className="btn btn-primary">
               <Plus size={16} /> Nueva Tarea
             </button>
