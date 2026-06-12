@@ -200,23 +200,8 @@ def upload_csv_results(
             else:
                 results = calculate_survey_scores(guide_type, answers)
                 
-                # Check for high-risk categories and suggest tasks
-                for cat_name, risk in results["category_risks"].items():
-                    if risk in ("Medio", "Alto", "Muy Alto"):
-                        exists = db.query(ActionPlan).filter(
-                            ActionPlan.company_id == current_user.company_id,
-                            ActionPlan.category_flagged == cat_name,
-                            ActionPlan.status != "completed"
-                        ).first()
-                        if not exists:
-                            suggested_task = ActionPlan(
-                                company_id=current_user.company_id,
-                                category_flagged=cat_name,
-                                intervention_level="first_level" if risk == "Medio" else "second_level",
-                                status="pending",
-                                description=f"Acción recomendada para mitigar el riesgo {risk} detectado en la Categoría: {cat_name}."
-                            )
-                            db.add(suggested_task)
+            # Removed automatic action plan task generation to prevent dummy duplicates.
+            # Suggestions are now exclusively shown in the frontend.
 
             # Create Response entry
             response_model = SurveyResponse(
@@ -319,23 +304,8 @@ def submit_public_response(
     else:
         results = calculate_survey_scores(guide_type, response_in.answers)
         
-        # Suggest task
-        for cat_name, risk in results["category_risks"].items():
-            if risk in ("Medio", "Alto", "Muy Alto"):
-                exists = db.query(ActionPlan).filter(
-                    ActionPlan.company_id == company_id,
-                    ActionPlan.category_flagged == cat_name,
-                    ActionPlan.status != "completed"
-                ).first()
-                if not exists:
-                    suggested_task = ActionPlan(
-                        company_id=company_id,
-                        category_flagged=cat_name,
-                        intervention_level="first_level" if risk == "Medio" else "second_level",
-                        status="pending",
-                        description=f"Acción recomendada para mitigar el riesgo {risk} detectado en la Categoría: {cat_name}."
-                    )
-                    db.add(suggested_task)
+        # Removed automatic action plan task generation to prevent dummy duplicates.
+        # Suggestions are now exclusively shown in the frontend.
 
     # Save response
     response_model = SurveyResponse(

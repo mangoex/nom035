@@ -1,4 +1,6 @@
-// frontend/src/pages/ActionPlanTracker.jsx
+import os
+
+new_code = """// frontend/src/pages/ActionPlanTracker.jsx
 import React, { useEffect, useState } from "react";
 import { 
   Plus, 
@@ -498,3 +500,7 @@ export default function ActionPlanTracker() {
     </div>
   );
 }
+"""
+
+with open("C:/Users/Miguel Gonzalez/Downloads/NOM-035/frontend/src/pages/ActionPlanTracker.jsx", "w", encoding="utf-8") as f:
+    f.write(new_code)
