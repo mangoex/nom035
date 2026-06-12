@@ -443,7 +443,8 @@ def get_survey_statistics(
     
     # Calculate global average score and its risk
     total_score = sum(r.calculated_scores.get("final_score", 0) for r in responses if "final_score" in r.calculated_scores)
-    global_score_average = round(total_score / total, 2) if total > 0 else 0
+    total_scored_responses = sum(1 for r in responses if "final_score" in r.calculated_scores)
+    global_score_average = round(total_score / total_scored_responses, 2) if total_scored_responses > 0 else 0
     global_score_risk = get_risk_level(global_score_average, thresholds["final"])
     
     # Extract unique filter options from ALL responses (unfiltered) to populate dropdowns

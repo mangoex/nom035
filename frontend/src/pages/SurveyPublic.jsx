@@ -89,8 +89,8 @@ export default function SurveyPublic() {
     });
   } else {
     questions = QUESTIONS_GUIA_III.filter(q => {
-      if (q.id >= 65 && q.id <= 68 && demographics.serves_customers === "No") return false;
-      if (q.id >= 69 && q.id <= 72 && demographics.is_boss === "No") return false;
+      if (q.id >= 42 && q.id <= 45 && demographics.serves_customers === "No") return false;
+      if (q.id >= 65 && q.id <= 72 && demographics.is_boss === "No") return false;
       return true;
     });
   }

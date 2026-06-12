@@ -96,7 +96,7 @@ GUIA_II_THRESHOLDS = {
 }
 
 # --- GUIA III: Factores de Riesgo Psicosocial y Entorno Organizacional (> 50 colaboradores) ---
-GUIA_III_INVERSE_ITEMS = {1, 4, 23, 24, 25, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 55, 56, 57}
+GUIA_III_INVERSE_ITEMS = {1, 4, 23, 24, 25, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 55, 56, 57, 65, 66, 67, 68, 69, 70, 71, 72}
 
 GUIA_III_MAPPING = {
     "categories": {
@@ -125,19 +125,19 @@ GUIA_III_THRESHOLDS = {
     "categories": {
         "Ambiente de trabajo": [5, 9, 11, 14],
         "Factores propios de la actividad": [15, 30, 45, 60],
-        "Organización del tiempo de trabajo": [5, 7, 11, 14],
+        "Organización del tiempo de trabajo": [5, 7, 10, 13],
         "Liderazgo y relaciones en el trabajo": [14, 29, 42, 55],
         "Entorno organizacional": [10, 14, 18, 23]
     },
     "domains": {
         "Condiciones en el ambiente de trabajo": [5, 9, 11, 14],
-        "Carga de trabajo": [15, 24, 30, 36],
-        "Falta de control sobre el trabajo": [8, 12, 16, 20],
+        "Carga de trabajo": [15, 21, 27, 37],
+        "Falta de control sobre el trabajo": [11, 16, 21, 25],
         "Jornada de trabajo": [1, 2, 4, 6],
-        "Interferencia en la relación trabajo-familia": [2, 4, 6, 8],
-        "Liderazgo": [6, 10, 15, 20],
-        "Relaciones en el trabajo": [7, 11, 15, 20],
-        "Violencia": [10, 13, 16, 20],
+        "Interferencia en la relación trabajo-familia": [4, 6, 8, 10],
+        "Liderazgo": [9, 12, 16, 20],
+        "Relaciones en el trabajo": [10, 13, 17, 21],
+        "Violencia": [7, 10, 13, 16],
         "Reconocimiento del desempeño": [6, 10, 14, 18],
         "Insuficiente sentido de pertenencia e inestabilidad": [4, 6, 8, 10]
     }
@@ -198,11 +198,14 @@ def calculate_survey_scores(guide_type: str, raw_answers: dict) -> dict:
         is_inverse = i in inverse_items
 
         if isinstance(val, str):
-            # String answer
             if is_inverse:
-                calibrated_answers[key] = RESPONSE_MAP_INVERSE.get(val, 0)
+                if val not in RESPONSE_MAP_INVERSE:
+                    raise ValueError(f"Respuesta inválida para la pregunta {key}: '{val}'")
+                calibrated_answers[key] = RESPONSE_MAP_INVERSE[val]
             else:
-                calibrated_answers[key] = RESPONSE_MAP_DIRECT.get(val, 0)
+                if val not in RESPONSE_MAP_DIRECT:
+                    raise ValueError(f"Respuesta inválida para la pregunta {key}: '{val}'")
+                calibrated_answers[key] = RESPONSE_MAP_DIRECT[val]
         else:
             # Numeric answer (assume 4 = Siempre ... 0 = Nunca)
             # Standard: Siempre=4, Casi siempre=3, Algunas veces=2, Casi nunca=1, Nunca=0

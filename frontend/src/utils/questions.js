@@ -71,9 +71,9 @@ export const QUESTIONS_GUIA_II = [
   { id: 41, text: "Atiendo a clientes o usuarios muy enojados" },
   { id: 42, text: "Mi trabajo me exige atender a personas muy necesitadas de ayuda o enfermas" },
   { id: 43, text: "Para hacer mi trabajo debo demostrar sentimientos distintos a los míos" },
-  { id: 44, text: "Mis trabajadores siguen mis instrucciones" },
-  { id: 45, text: "Mis trabajadores cooperan entre ellos" },
-  { id: 46, text: "Toman en cuenta mis decisiones" }
+  { id: 44, text: "Mis trabajadores comunican tarde los asuntos de trabajo" },
+  { id: 45, text: "Mis trabajadores dificultan el logro de los resultados del trabajo" },
+  { id: 46, text: "Mis trabajadores ignoran las sugerencias para mejorar su trabajo" }
 ];
 
 export const QUESTIONS_GUIA_III = [

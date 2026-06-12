@@ -36,6 +36,20 @@ const RISK_COLORS = {
   "N/A": "#cbd5e1"
 };
 
+const CustomTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div style={{ backgroundColor: "var(--bg-secondary)", padding: "10px", border: "1px solid var(--border-color)", borderRadius: "8px", color: "var(--text-primary)" }}>
+        <p style={{ fontWeight: "700", marginBottom: "4px" }}>{data.fullName}</p>
+        <p>Puntaje: <span style={{ fontWeight: "600" }}>{data.Puntaje}</span></p>
+        <p>Nivel de Riesgo: <strong style={{ color: RISK_COLORS[data.Riesgo] }}>{data.Riesgo}</strong></p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState(null);
@@ -121,19 +135,7 @@ export default function Dashboard() {
     Riesgo: stats?.domain_risks?.[name] || "Nulo"
   }));
 
-  const CustomTooltip = ({ active, payload }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div style={{ backgroundColor: "var(--bg-secondary)", padding: "10px", border: "1px solid var(--border-color)", borderRadius: "8px", color: "var(--text-primary)" }}>
-          <p style={{ fontWeight: "700", marginBottom: "4px" }}>{data.fullName}</p>
-          <p>Puntaje: <span style={{ fontWeight: "600" }}>{data.Puntaje}</span></p>
-          <p>Nivel de Riesgo: <strong style={{ color: RISK_COLORS[data.Riesgo] }}>{data.Riesgo}</strong></p>
-        </div>
-      );
-    }
-    return null;
-  };
+
 
   // Extract available filters (dynamic)
   const availableFilters = stats?.available_filters || { age_ranges: [], genders: [], departments: [], positions: [] };
