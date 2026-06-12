@@ -41,7 +41,7 @@ def evaluate_guia_i(answers: dict) -> dict:
 
     requires_attention = False
     if section_i:
-        if section_ii >= 1 or section_iii >= 3 or section_iv >= 1:
+        if section_ii >= 1 or section_iii >= 3 or section_iv >= 2:
             requires_attention = True
 
     return {

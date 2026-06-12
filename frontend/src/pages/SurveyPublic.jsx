@@ -30,7 +30,9 @@ export default function SurveyPublic() {
     age_range: "26-35",
     gender: "Femenino",
     department: "",
-    position: "Operativo"
+    position: "Operativo",
+    serves_customers: "",
+    is_boss: ""
   });
 
   // Questionnaire state
@@ -80,9 +82,17 @@ export default function SurveyPublic() {
   if (guide_type === "GUIA_I") {
     questions = QUESTIONS_GUIA_I;
   } else if (guide_type === "GUIA_II") {
-    questions = QUESTIONS_GUIA_II;
+    questions = QUESTIONS_GUIA_II.filter(q => {
+      if (q.id >= 41 && q.id <= 43 && demographics.serves_customers === "No") return false;
+      if (q.id >= 44 && q.id <= 46 && demographics.is_boss === "No") return false;
+      return true;
+    });
   } else {
-    questions = QUESTIONS_GUIA_III;
+    questions = QUESTIONS_GUIA_III.filter(q => {
+      if (q.id >= 65 && q.id <= 68 && demographics.serves_customers === "No") return false;
+      if (q.id >= 69 && q.id <= 72 && demographics.is_boss === "No") return false;
+      return true;
+    });
   }
 
   const questionsPerPage = 6;
@@ -221,6 +231,27 @@ export default function SurveyPublic() {
                   <option value="Gerencial">Gerente / Director</option>
                 </select>
               </div>
+
+              {guide_type !== "GUIA_I" && (
+                <>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="serves_customers">¿En su trabajo atiende a clientes o usuarios?</label>
+                    <select id="serves_customers" className="form-input" value={demographics.serves_customers} onChange={handleDemographicChange}>
+                      <option value="">Seleccione...</option>
+                      <option value="Sí">Sí</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="is_boss">¿Es usted jefe de otros trabajadores?</label>
+                    <select id="is_boss" className="form-input" value={demographics.is_boss} onChange={handleDemographicChange}>
+                      <option value="">Seleccione...</option>
+                      <option value="Sí">Sí</option>
+                      <option value="No">No</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
 
             <button
@@ -228,6 +259,16 @@ export default function SurveyPublic() {
                 if (!demographics.department.trim()) {
                   alert("Por favor ingrese su departamento o área.");
                   return;
+                }
+                if (guide_type !== "GUIA_I") {
+                  if (!demographics.serves_customers) {
+                    alert("Por favor responda si atiende a clientes o usuarios.");
+                    return;
+                  }
+                  if (!demographics.is_boss) {
+                    alert("Por favor responda si es jefe de otros trabajadores.");
+                    return;
+                  }
                 }
                 setStep(1);
               }}

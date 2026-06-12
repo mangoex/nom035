@@ -17,21 +17,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Exception handler for remote debugging
-@app.exception_handler(Exception)
-def debug_exception_handler(request: Request, exc: Exception):
-    tb = traceback.format_exc()
-    return JSONResponse(
-        status_code=500,
-        content={
-            "detail": f"Debug Exception: {str(exc)}",
-            "traceback": tb.split("\n")
-        }
-    )
 
-@app.get("/api/debug-version")
-def debug_version():
-    return {"version": "v2-debug-exception-handler"}
 
 # CORS configuration
 origins = [

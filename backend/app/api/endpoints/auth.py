@@ -14,7 +14,7 @@ from backend.app.core.auth import (
 router = APIRouter()
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-def register(user_in: UserRegister, response: Response, db: Session = Depends(get_db)):
+def register(user_in: UserRegister, response: Response, request: Request, db: Session = Depends(get_db)):
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_in.email).first()
     if existing_user:
@@ -65,19 +65,21 @@ def register(user_in: UserRegister, response: Response, db: Session = Depends(ge
 
     # 4. Generate token and set HttpOnly Cookie
     access_token = create_access_token(data={"sub": user.email})
+    host = request.headers.get("host", "")
+    is_secure = "localhost" not in host and "127.0.0.1" not in host
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
         max_age=60 * 60 * 24,  # 1 day
         samesite="lax",
-        secure=False  # Set to True in production with HTTPS
+        secure=is_secure
     )
 
     return user
 
 @router.post("/login")
-def login(user_in: UserLogin, response: Response, db: Session = Depends(get_db)):
+def login(user_in: UserLogin, response: Response, request: Request, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == user_in.email).first()
     if not user or not verify_password(user_in.password, user.password_hash):
         raise HTTPException(
@@ -87,16 +89,18 @@ def login(user_in: UserLogin, response: Response, db: Session = Depends(get_db))
 
     # Generate token and set HttpOnly Cookie
     access_token = create_access_token(data={"sub": user.email})
+    host = request.headers.get("host", "")
+    is_secure = "localhost" not in host and "127.0.0.1" not in host
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
         max_age=60 * 60 * 24,  # 1 day
         samesite="lax",
-        secure=False  # Set to True in production with HTTPS
+        secure=is_secure
     )
 
-    return {"user": UserOut.model_validate(user), "access_token": access_token}
+    return {"user": UserOut.model_validate(user), "message": "Inicio de sesión exitoso"}
 
 @router.post("/logout")
 def logout(response: Response):
