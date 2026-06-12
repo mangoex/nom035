@@ -126,7 +126,11 @@ def upload_csv_results(
     try:
         # Read uploaded file
         contents = file.file.read()
-        df = pd.read_csv(io.BytesIO(contents), encoding="utf-8-sig")
+        try:
+            df = pd.read_csv(io.BytesIO(contents), encoding="utf-8-sig")
+        except UnicodeDecodeError:
+            # Fallback for CSVs saved from Excel in Spanish Windows (ANSI/Latin-1)
+            df = pd.read_csv(io.BytesIO(contents), encoding="latin1")
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
