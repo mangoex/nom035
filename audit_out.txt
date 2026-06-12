@@ -1,0 +1,92 @@
+
+DOMAIN: Condiciones en el ambiente de trabajo
+  1: El espacio donde trabajo me permite realizar mis actividades de manera segura e higiénica
+  2: Mi trabajo me exige hacer mucho esfuerzo físico
+  3: Me preocupa sufrir un accidente en mi trabajo
+  4: Considero que las actividades que realizo son peligrosas
+  5: Por la cantidad de trabajo que tengo debo quedarme tiempo adicional a mi turno
+
+DOMAIN: Carga de trabajo
+  6: Por la cantidad de trabajo que tengo debo trabajar sin parar
+  7: Considero que es necesario mantener un ritmo de trabajo acelerado
+  8: Mi trabajo exige que esté muy concentrado
+  9: Mi trabajo requiere que memorice mucha información
+  10: En mi trabajo tengo que tomar decisiones difíciles muy rápido
+  11: Mi trabajo exige que atienda varios asuntos al mismo tiempo
+  12: En mi trabajo soy responsable de cosas de mucho valor
+  13: Respondo ante mi jefe por los resultados de toda mi área de trabajo
+  14: En el trabajo me dan órdenes contradictorias
+  15: Considero que en mi trabajo me piden hacer cosas innecesarias
+  16: Trabajo horas extras más de tres veces a la semana
+  65: Mis trabajadores siguen mis instrucciones
+  66: Mis trabajadores cooperan entre ellos
+  67: Toman en cuenta mis decisiones
+  68: Resuelvo problemas que se presentan con los trabajadores
+
+DOMAIN: Falta de control sobre el trabajo
+  23: Las decisiones que tomo en el trabajo son respetadas
+  24: En mi trabajo puedo proponer mejoras para mis actividades
+  25: En mi trabajo puedo tomar pausas cuando las necesito
+  26: El trabajo me permite desarrollar mis habilidades
+  27: Mi jefe me informa sobre las decisiones que toma
+  28: Mi jefe reconoce mi esfuerzo
+  29: Mi jefe toma en cuenta mis ideas y opiniones
+  30: Mi jefe me comunica los cambios que ocurren en mi lugar de trabajo
+  35: Existe compañerismo entre el personal
+  36: El trato con mis compañeros de trabajo es respetuoso
+
+DOMAIN: Jornada de trabajo
+  17: Mi trabajo me exige laborar en días de descanso, festivos o fines de semana
+  18: Considero que el tiempo en el trabajo absorbe mucho de mi tiempo libre
+
+DOMAIN: Interferencia en la relación trabajo-familia
+  19: El tiempo que paso en el trabajo afecta mis responsabilidades familiares
+  20: Pienso en las actividades del trabajo cuando estoy en mi tiempo libre
+  21: Mi jefe permite que organice mi tiempo de trabajo
+  22: Mi jefe me permite decidir cómo realizo el trabajo
+
+DOMAIN: Liderazgo
+  31: Recibo la capacitación necesaria para hacer bien mi trabajo
+  32: La capacitación que recibo es útil para mi trabajo
+  33: Mis compañeros me ayudan cuando tengo mucho trabajo
+  34: Mis compañeros de trabajo escuchan y toman en cuenta mis opiniones
+  37: Mi jefe me trata de forma respetuosa
+  38: En mi trabajo hay violencia (golpes, empujones, etc.)
+  39: En mi trabajo hay faltas de respeto (insultos, burlas, etc.)
+  40: En mi trabajo hay personas que se burlan de mí
+  41: En mi trabajo he sido ignorado(a) o excluido(a) por mis compañeros o jefe
+
+DOMAIN: Relaciones en el trabajo
+  42: Atiendo a clientes o usuarios muy enojados
+  43: Mi trabajo me exige atender a personas muy necesitadas de ayuda o enfermas
+  44: Para hacer mi trabajo debo demostrar sentimientos distintos a los míos
+  45: Mi trabajo me exige atender situaciones de violencia
+  46: Me comunican a tiempo los asuntos de trabajo
+
+DOMAIN: Violencia
+  57: En mi trabajo se fomenta el trabajo en equipo
+  58: La empresa se preocupa por mi bienestar
+  59: Siento orgullo de trabajar para esta empresa
+  60: Me siento comprometido(a) con la empresa
+  61: En mi trabajo recibo el apoyo que necesito para realizar mis tareas
+  62: Siento que el trabajo que realizo es importante y valioso
+  63: En la empresa se reconocen mis logros
+  64: En mi trabajo se valora la experiencia y los conocimientos que tengo
+  69: Comunico a mis trabajadores los cambios que afectan su trabajo
+  70: Escucho y tomo en cuenta las opiniones de los trabajadores
+  71: Reconozco el buen trabajo de los trabajadores
+  72: Proporciono retroalimentación a mis trabajadores sobre su desempeño
+
+DOMAIN: Reconocimiento del desempeño
+  47: La comunicación entre mis compañeros y yo es buena
+  48: La información que recibo sobre mi trabajo es clara
+  49: Me informan a quién debo dirigirme para resolver problemas
+  50: Me explican claramente los resultados que se esperan de mi trabajo
+  51: Me informan sobre lo que hago bien y lo que debo mejorar
+  52: Me comunican a tiempo los cambios que afectan mi trabajo
+
+DOMAIN: Insuficiente sentido de pertenencia e inestabilidad
+  53: En mi trabajo puedo expresarme libremente
+  54: Las evaluaciones de mi desempeño son justas
+  55: Recibo un trato justo y equitativo
+  56: La distribución del trabajo es justa y equitativa

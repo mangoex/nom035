@@ -1,0 +1,62 @@
+
+DOMAIN: Condiciones en el ambiente de trabajo
+  1: Mi trabajo me exige hacer mucho esfuerzo físico
+  2: Me preocupa sufrir un accidente en mi trabajo
+  3: Considero que las actividades que realizo son peligrosas
+
+DOMAIN: Carga de trabajo
+  4: Por la cantidad de trabajo que tengo debo quedarme tiempo adicional a mi turno
+  5: Por la cantidad de trabajo que tengo debo trabajar sin parar
+  6: Considero que es necesario mantener un ritmo de trabajo acelerado
+  7: Mi trabajo exige que esté muy concentrado
+  8: Mi trabajo requiere que memorice mucha información
+  9: En mi trabajo tengo que tomar decisiones difíciles muy rápido
+  10: Mi trabajo exige que atienda varios asuntos al mismo tiempo
+  11: En mi trabajo soy responsable de cosas de mucho valor
+  12: Respondo ante mi jefe por los resultados de toda mi área de trabajo
+  13: En el trabajo me dan órdenes contradictorias
+  41: Atiendo a clientes o usuarios muy enojados
+  42: Mi trabajo me exige atender a personas muy necesitadas de ayuda o enfermas
+  43: Para hacer mi trabajo debo demostrar sentimientos distintos a los míos
+
+DOMAIN: Falta de control sobre el trabajo
+  18: El tiempo que paso en el trabajo afecta mis responsabilidades familiares
+  19: Pienso en las actividades del trabajo cuando estoy en mi tiempo libre
+  20: Mi jefe permite que organice mi tiempo de trabajo
+  21: Mi jefe me permite decidir cómo realizo el trabajo
+  22: Las decisiones que tomo en el trabajo son respetadas
+  26: Mi jefe me informa sobre las decisiones que toma
+  27: Mi jefe reconoce mi esfuerzo
+
+DOMAIN: Jornada de trabajo
+  14: Considero que en mi trabajo me piden hacer cosas innecesarias
+  15: Trabajo horas extras más de tres veces a la semana
+
+DOMAIN: Interferencia en la relación trabajo-familia
+  16: Mi trabajo me exige laborar en días de descanso, festivos o fines de semana
+  17: Considero que el tiempo en el trabajo absorbe mucho de mi tiempo libre
+
+DOMAIN: Liderazgo
+  23: En mi trabajo puedo proponer mejoras para mis actividades
+  24: En mi trabajo puedo tomar pausas cuando las necesito
+  25: El trabajo me permite desarrollar mis habilidades
+  28: Mi jefe toma en cuenta mis ideas y opiniones
+  29: Mi jefe me comunica los cambios que ocurren en mi lugar de trabajo
+
+DOMAIN: Relaciones en el trabajo
+  30: Recibo la capacitación necesaria para hacer bien mi trabajo
+  31: La capacitación que recibo es útil para mi trabajo
+  32: Mis compañeros me ayudan cuando tengo mucho trabajo
+  44: Mis trabajadores comunican tarde los asuntos de trabajo
+  45: Mis trabajadores dificultan el logro de los resultados del trabajo
+  46: Mis trabajadores ignoran las sugerencias para mejorar su trabajo
+
+DOMAIN: Violencia
+  33: Mis compañeros de trabajo escuchan y toman en cuenta mis opiniones
+  34: Existe compañerismo entre el personal
+  35: El trato con mis compañeros de trabajo es respetuoso
+  36: Mi jefe me trata de forma respetuosa
+  37: En mi trabajo hay violencia (golpes, empujones, etc.)
+  38: En mi trabajo hay faltas de respeto (insultos, burlas, etc.)
+  39: En mi trabajo hay personas que se burlan de mí
+  40: En mi trabajo he sido ignorado(a) o excluido(a) por mis compañeros o jefe

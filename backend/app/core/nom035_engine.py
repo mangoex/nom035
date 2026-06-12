@@ -59,19 +59,19 @@ GUIA_II_INVERSE_ITEMS = {18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
 GUIA_II_MAPPING = {
     "categories": {
         "Ambiente de trabajo": [1, 2, 3],
-        "Factores propios de la actividad": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 18, 19, 20, 21, 22, 26, 27, 41, 42, 43],
-        "Organización del tiempo de trabajo": [14, 15, 16, 17],
-        "Liderazgo y relaciones en el trabajo": [23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 44, 45, 46]
+        "Factores propios de la actividad": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27, 28, 29, 41, 42, 43],
+        "Organización del tiempo de trabajo": [14, 15, 16, 17, 18, 19, 20],
+        "Liderazgo y relaciones en el trabajo": [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 44, 45, 46]
     },
     "domains": {
         "Condiciones en el ambiente de trabajo": [1, 2, 3],
         "Carga de trabajo": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 41, 42, 43],
-        "Falta de control sobre el trabajo": [18, 19, 20, 21, 22, 26, 27],
+        "Falta de control sobre el trabajo": [21, 22, 23, 24, 25, 26, 27, 28, 29],
         "Jornada de trabajo": [14, 15],
-        "Interferencia en la relación trabajo-familia": [16, 17],
-        "Liderazgo": [23, 24, 25, 28, 29],
-        "Relaciones en el trabajo": [30, 31, 32, 44, 45, 46],
-        "Violencia": [33, 34, 35, 36, 37, 38, 39, 40]
+        "Interferencia en la relación trabajo-familia": [16, 17, 18, 19, 20],
+        "Liderazgo": [30, 31, 32],
+        "Relaciones en el trabajo": [33, 34, 35, 36, 37, 44, 45, 46],
+        "Violencia": [38, 39, 40]
     }
 }
 
@@ -101,9 +101,9 @@ GUIA_III_INVERSE_ITEMS = {1, 4, 23, 24, 25, 26, 27, 28, 30, 31, 32, 33, 34, 35, 
 GUIA_III_MAPPING = {
     "categories": {
         "Ambiente de trabajo": [1, 2, 3, 4, 5],
-        "Factores propios de la actividad": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 35, 36],
+        "Factores propios de la actividad": [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 35, 36, 65, 66, 67, 68],
         "Organización del tiempo de trabajo": [17, 18, 19, 20, 21, 22],
-        "Liderazgo y relaciones en el trabajo": [31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72],
+        "Liderazgo y relaciones en el trabajo": [31, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 57, 58, 59, 60, 61, 62, 63, 64, 69, 70, 71, 72],
         "Entorno organizacional": [47, 48, 49, 50, 51, 52, 53, 54, 55, 56]
     },
     "domains": {
@@ -113,8 +113,8 @@ GUIA_III_MAPPING = {
         "Jornada de trabajo": [17, 18],
         "Interferencia en la relación trabajo-familia": [19, 20, 21, 22],
         "Liderazgo": [31, 32, 33, 34, 37, 38, 39, 40, 41],
-        "Relaciones en el trabajo": [42, 43, 44, 45, 46],
-        "Violencia": [57, 58, 59, 60, 61, 62, 63, 64, 69, 70, 71, 72],
+        "Relaciones en el trabajo": [42, 43, 44, 45, 46, 69, 70, 71, 72],
+        "Violencia": [57, 58, 59, 60, 61, 62, 63, 64],
         "Reconocimiento del desempeño": [47, 48, 49, 50, 51, 52],
         "Insuficiente sentido de pertenencia e inestabilidad": [53, 54, 55, 56]
     }
