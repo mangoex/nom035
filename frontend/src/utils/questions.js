@@ -139,8 +139,8 @@ export const QUESTIONS_GUIA_III = [
   { id: 66, text: "Mi trabajo me exige atender a personas muy necesitadas de ayuda o enfermas" },
   { id: 67, text: "Para hacer mi trabajo debo demostrar sentimientos distintos a los míos" },
   { id: 68, text: "Mi trabajo me exige atender situaciones de violencia" },
-  { id: 69, text: "Comunico a mis trabajadores los cambios que afectan su trabajo" },
-  { id: 70, text: "Escucho y tomo en cuenta las opiniones de los trabajadores" },
-  { id: 71, text: "Resuelvo los problemas que se presentan con los trabajadores" },
-  { id: 72, text: "Reconozco el buen trabajo de los trabajadores" }
+  { id: 69, text: "Mis trabajadores comunican tarde los asuntos de trabajo" },
+  { id: 70, text: "Mis trabajadores dificultan el logro de los resultados del trabajo" },
+  { id: 71, text: "Mis trabajadores cooperan poco cuando se necesita" },
+  { id: 72, text: "Mis trabajadores ignoran las sugerencias para mejorar su trabajo" }
 ];

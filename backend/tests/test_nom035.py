@@ -31,23 +31,21 @@ def test_guia_i_requires_attention():
 
 def test_guia_ii_scoring_extremes():
     # If all items are 'Nunca':
-    # Direct items (1-17, 34-46) sum to 0
-    # Inverse items (18-33) sum to 16 * 4 = 64
-    # Total score should be 64 -> Risk 'Medio' (45 <= 64 < 70)
+    # Inverse items (18 items) sum to 18 * 4 = 72
+    # Total score should be 72 -> Risk 'Alto' (70 <= 72 < 90)
     answers_never = {f"q{i}": "Nunca" for i in range(1, 47)}
     result_never = calculate_survey_scores("GUIA_II", answers_never)
     
-    assert result_never["final_score"] == 64
-    assert result_never["final_risk"] == "Medio"
+    assert result_never["final_score"] == 72
+    assert result_never["final_risk"] == "Alto"
 
     # If all items are 'Siempre':
-    # Direct items (1-17, 34-46) sum to 30 * 4 = 120
-    # Inverse items (18-33) sum to 0
-    # Total score should be 120 -> Risk 'Muy Alto' (>= 90)
+    # Direct items (28 items) sum to 28 * 4 = 112
+    # Total score should be 112 -> Risk 'Muy Alto' (>= 90)
     answers_always = {f"q{i}": "Siempre" for i in range(1, 47)}
     result_always = calculate_survey_scores("GUIA_II", answers_always)
     
-    assert result_always["final_score"] == 120
+    assert result_always["final_score"] == 112
     assert result_always["final_risk"] == "Muy Alto"
 
 def test_guia_iii_scoring():
