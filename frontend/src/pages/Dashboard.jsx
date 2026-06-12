@@ -67,7 +67,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const componentRef = useRef();
   const handlePrint = useReactToPrint({
-    content: () => componentRef.current,
+    contentRef: componentRef,
     documentTitle: "Reporte_NOM_035",
   });
   
