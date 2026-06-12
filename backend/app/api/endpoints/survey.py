@@ -332,16 +332,35 @@ def submit_public_response(
     db.commit()
     return {"message": "Encuesta registrada con éxito."}
 
+from typing import Optional
+
 # --- DASHBOARD & STATISTICS ---
+
+def filter_responses(responses, age_range, gender, department, position):
+    filtered = []
+    for r in responses:
+        d = r.demographics
+        if age_range and d.get("age_range") != age_range: continue
+        if gender and d.get("gender") != gender: continue
+        if department and d.get("department") != department: continue
+        if position and d.get("position") != position: continue
+        filtered.append(r)
+    return filtered
 
 @router.get("/stats")
 def get_survey_statistics(
+    age_range: Optional[str] = None,
+    gender: Optional[str] = None,
+    department: Optional[str] = None,
+    position: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    responses = db.query(SurveyResponse).filter(
+    all_responses = db.query(SurveyResponse).filter(
         SurveyResponse.company_id == current_user.company_id
     ).all()
+    
+    responses = filter_responses(all_responses, age_range, gender, department, position)
     
     if not responses:
         return {
@@ -349,16 +368,22 @@ def get_survey_statistics(
             "requires_clinical_referral_count": 0,
             "final_risk_distribution": {},
             "category_averages": {},
-            "domain_averages": {}
+            "category_risks": {},
+            "domain_averages": {},
+            "domain_risks": {}
         }
         
     total = len(responses)
     clinical_referrals = 0
     final_risks = {}
+    
     category_scores_sum = {}
     category_counts = {}
+    category_risks_dict = {}
+    
     domain_scores_sum = {}
     domain_counts = {}
+    domain_risks_dict = {}
     
     for r in responses:
         scores = r.calculated_scores
@@ -374,19 +399,41 @@ def get_survey_statistics(
             for cat, val in scores["category_scores"].items():
                 category_scores_sum[cat] = category_scores_sum.get(cat, 0.0) + val
                 category_counts[cat] = category_counts.get(cat, 0) + 1
+        if "category_risks" in scores:
+            # We track the highest risk seen, or we recalculate the average risk?
+            # It's better to calculate the average score and then use nom035_engine to get the risk level of that average?
+            # Or just provide the raw averages and let the frontend determine the risk based on the tables. 
+            # Actually, the user asked to identify those with the highest risk. The frontend can just use the score.
+            pass
                 
         if "domain_scores" in scores:
             for dom, val in scores["domain_scores"].items():
                 domain_scores_sum[dom] = domain_scores_sum.get(dom, 0.0) + val
                 domain_counts[dom] = domain_counts.get(dom, 0) + 1
 
+    from backend.app.core.nom035_engine import get_risk_level, GUIA_II_THRESHOLDS, GUIA_III_THRESHOLDS
+    
+    # We need to know which guide to apply the thresholds. 
+    # Since a company can only have one active_guide, we use the company's active guide.
+    guide_type = current_user.company.active_guide if hasattr(current_user, "company") and current_user.company else "GUIA_III"
+    thresholds = GUIA_II_THRESHOLDS if guide_type == "GUIA_II" else GUIA_III_THRESHOLDS
+    
     category_averages = {
         cat: round(category_scores_sum[cat] / category_counts[cat], 2)
         for cat in category_scores_sum
     }
+    category_risks_dict = {
+        cat: get_risk_level(category_averages[cat], thresholds["categories"][cat]) if cat in thresholds["categories"] else "Nulo"
+        for cat in category_averages
+    }
+    
     domain_averages = {
         dom: round(domain_scores_sum[dom] / domain_counts[dom], 2)
         for dom in domain_scores_sum
+    }
+    domain_risks_dict = {
+        dom: get_risk_level(domain_averages[dom], thresholds["domains"][dom]) if dom in thresholds["domains"] else "Nulo"
+        for dom in domain_averages
     }
     
     final_risk_distribution = {
@@ -399,5 +446,39 @@ def get_survey_statistics(
         "requires_clinical_referral_count": clinical_referrals,
         "final_risk_distribution": final_risk_distribution,
         "category_averages": category_averages,
-        "domain_averages": domain_averages
+        "category_risks": category_risks_dict,
+        "domain_averages": domain_averages,
+        "domain_risks": domain_risks_dict
     }
+
+@router.get("/responses")
+def get_survey_responses_list(
+    age_range: Optional[str] = None,
+    gender: Optional[str] = None,
+    department: Optional[str] = None,
+    position: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    all_responses = db.query(SurveyResponse).filter(
+        SurveyResponse.company_id == current_user.company_id
+    ).order_by(SurveyResponse.created_at.desc()).all()
+    
+    responses = filter_responses(all_responses, age_range, gender, department, position)
+    
+    data = []
+    for r in responses:
+        scores = r.calculated_scores
+        final_risk = scores.get("final_risk", "N/A")
+        if "requires_attention" in scores and scores["requires_attention"]:
+            final_risk = "Requiere Atención (ATS)"
+            
+        data.append({
+            "id": r.id,
+            "created_at": r.created_at,
+            "demographics": r.demographics,
+            "final_risk": final_risk,
+            "scores": scores
+        })
+        
+    return {"responses": data}
