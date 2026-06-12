@@ -509,7 +509,7 @@ export default function Dashboard() {
       </main>
 
       {/* Hidden Printable Component */}
-      <div style={{ display: "none" }}>
+      <div style={{ position: "absolute", top: "-10000px", left: "-10000px", overflow: "hidden" }}>
         <PrintableReport 
           ref={componentRef} 
           company={company} 
