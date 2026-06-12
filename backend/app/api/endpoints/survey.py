@@ -246,9 +246,10 @@ def delete_all_responses(
     current_user: User = Depends(get_current_admin)
 ):
     try:
+        deleted_plans = db.query(ActionPlan).filter(ActionPlan.company_id == current_user.company_id).delete()
         deleted = db.query(SurveyResponse).filter(SurveyResponse.company_id == current_user.company_id).delete()
         db.commit()
-        return {"success": True, "deleted_count": deleted}
+        return {"success": True, "deleted_responses": deleted, "deleted_plans": deleted_plans}
     except Exception as e:
         db.rollback()
         raise HTTPException(

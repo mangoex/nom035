@@ -54,7 +54,7 @@ def evaluate_guia_i(answers: dict) -> dict:
     }
 
 # --- GUIA II: Factores de Riesgo Psicosocial (16 - 50 colaboradores) ---
-GUIA_II_INVERSE_ITEMS = {18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33}
+GUIA_II_INVERSE_ITEMS = {1, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37}
 
 GUIA_II_MAPPING = {
     "categories": {
@@ -96,7 +96,7 @@ GUIA_II_THRESHOLDS = {
 }
 
 # --- GUIA III: Factores de Riesgo Psicosocial y Entorno Organizacional (> 50 colaboradores) ---
-GUIA_III_INVERSE_ITEMS = {1, 4, 23, 24, 25, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 55, 56, 57, 65, 66, 67, 68, 69, 70, 71, 72}
+GUIA_III_INVERSE_ITEMS = {1, 5, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 69, 70, 71, 72}
 
 GUIA_III_MAPPING = {
     "categories": {

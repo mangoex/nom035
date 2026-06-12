@@ -12,7 +12,7 @@ services:
     environment:
       - PORT=8000
       - DATABASE_URL=sqlite:////app/data/nom035.db
-      - SECRET_KEY=production-secret-nom035-key-change-this-vps
+      - SECRET_KEY=${SECRET_KEY}
     restart: always
 
 volumes:
