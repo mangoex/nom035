@@ -240,6 +240,22 @@ def upload_csv_results(
         "errors": errors
     }
 
+@router.delete("/responses")
+def delete_all_responses(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    try:
+        deleted = db.query(SurveyResponse).filter(SurveyResponse.company_id == current_user.company_id).delete()
+        db.commit()
+        return {"success": True, "deleted_count": deleted}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al borrar las encuestas: {str(e)}"
+        )
+
 # --- PUBLIC ENDPOINTS ---
 
 @router.get("/public/{link_hash}")

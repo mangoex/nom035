@@ -8,7 +8,8 @@ import {
   Check, 
   AlertCircle, 
   CheckCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Trash2
 } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
@@ -120,14 +121,30 @@ export default function SurveyIntake() {
       });
       setUploadResult(res.data);
       setFile(null);
+      // Refetch stats to reflect newly uploaded data
+      fetchSessionData();
     } catch (err) {
       console.error(err);
-      setError(
-        err.response?.data?.detail || 
-        "Error al procesar el archivo. Verifique el formato e intente nuevamente."
-      );
+      if (err.response && err.response.data && err.response.data.detail) {
+        alert(err.response.data.detail);
+      } else {
+        alert("Error al procesar el archivo CSV.");
+      }
     } finally {
       setUploadLoading(false);
+    }
+  };
+
+  const handleDeleteResponses = async () => {
+    if (window.confirm("¿Estás seguro de que deseas borrar TODAS las encuestas y resultados de la base de datos de tu empresa? Esta acción NO se puede deshacer.")) {
+      try {
+        await api.delete("/api/survey/responses");
+        alert("Todos los datos han sido borrados correctamente.");
+        window.location.reload();
+      } catch (err) {
+        console.error(err);
+        alert("Hubo un error al intentar borrar los datos.");
+      }
     }
   };
 
@@ -323,6 +340,23 @@ export default function SurveyIntake() {
           </div>
 
         </div>
+
+        {/* Zona de Peligro */}
+        <div className="glass-card" style={{ marginTop: "24px", border: "1px solid var(--color-danger)", backgroundColor: "rgba(239, 68, 68, 0.05)" }}>
+          <div style={{ padding: "20px" }}>
+            <h3 style={{ fontSize: "16px", fontWeight: "700", color: "var(--color-danger)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <Trash2 size={20} />
+              Zona de Peligro: Borrar Base de Datos
+            </h3>
+            <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "8px", marginBottom: "16px" }}>
+              Esta opción eliminará de forma permanente todas las encuestas recopiladas (tanto de la Opción A como de la Opción B), resultados y planes de acción de tu empresa. Utiliza esta función solo si necesitas limpiar cálculos anteriores o si deseas hacer un reinicio total.
+            </p>
+            <button onClick={handleDeleteResponses} className="btn btn-primary" style={{ backgroundColor: "var(--color-danger)", borderColor: "var(--color-danger)", fontSize: "13px" }}>
+              Borrar todos los resultados
+            </button>
+          </div>
+        </div>
+
       </main>
     </div>
   );
