@@ -387,7 +387,9 @@ def get_survey_statistics(
             "category_averages": {},
             "category_risks": {},
             "domain_averages": {},
-            "domain_risks": {}
+            "domain_risks": {},
+            "dimension_averages": {},
+            "dimension_risks": {}
         }
         
     total = len(responses)
@@ -401,6 +403,10 @@ def get_survey_statistics(
     domain_scores_sum = {}
     domain_counts = {}
     domain_risks_dict = {}
+    
+    dimension_scores_sum = {}
+    dimension_counts = {}
+    dimension_risks_dict = {}
     
     for r in responses:
         scores = r.calculated_scores
@@ -428,6 +434,11 @@ def get_survey_statistics(
                 domain_scores_sum[dom] = domain_scores_sum.get(dom, 0.0) + val
                 domain_counts[dom] = domain_counts.get(dom, 0) + 1
 
+        if "dimension_scores" in scores:
+            for dim, val in scores["dimension_scores"].items():
+                dimension_scores_sum[dim] = dimension_scores_sum.get(dim, 0.0) + val
+                dimension_counts[dim] = dimension_counts.get(dim, 0) + 1
+
     from backend.app.core.nom035_engine import get_risk_level, GUIA_II_THRESHOLDS, GUIA_III_THRESHOLDS
     
     # We need to know which guide to apply the thresholds. 
@@ -451,6 +462,15 @@ def get_survey_statistics(
     domain_risks_dict = {
         dom: get_risk_level(domain_averages[dom], thresholds["domains"][dom]) if dom in thresholds["domains"] else "Nulo"
         for dom in domain_averages
+    }
+    
+    dimension_averages = {
+        dim: round(dimension_scores_sum[dim] / dimension_counts[dim], 2)
+        for dim in dimension_scores_sum
+    }
+    dimension_risks_dict = {
+        dim: get_risk_level(dimension_averages[dim], thresholds.get("dimensions", {}).get(dim, [3, 4, 5, 6]))
+        for dim in dimension_averages
     }
     
     final_risk_distribution = {
@@ -482,6 +502,8 @@ def get_survey_statistics(
         "category_risks": category_risks_dict,
         "domain_averages": domain_averages,
         "domain_risks": domain_risks_dict,
+        "dimension_averages": dimension_averages,
+        "dimension_risks": dimension_risks_dict,
         "available_filters": available_filters
     }
 

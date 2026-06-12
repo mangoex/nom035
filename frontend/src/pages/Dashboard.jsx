@@ -21,7 +21,12 @@ import {
   XAxis, 
   YAxis, 
   Tooltip, 
-  CartesianGrid
+  CartesianGrid,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis
 } from "recharts";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
@@ -129,13 +134,18 @@ export default function Dashboard() {
   }));
 
   const barDataDomains = Object.entries(stats?.domain_averages || {}).map(([name, value]) => ({
-    name: name.length > 15 ? name.substring(0, 15) + "..." : name,
+    name: name.length > 30 ? name.substring(0, 30) + "..." : name,
     fullName: name,
     Puntaje: value,
     Riesgo: stats?.domain_risks?.[name] || "Nulo"
   }));
 
-
+  const radarDataDimensions = Object.entries(stats?.dimension_averages || {}).map(([name, value]) => ({
+    name: name.length > 25 ? name.substring(0, 25) + "..." : name,
+    fullName: name,
+    Puntaje: value,
+    Riesgo: stats?.dimension_risks?.[name] || "Nulo"
+  }));
 
   // Extract available filters (dynamic)
   const availableFilters = stats?.available_filters || { age_ranges: [], genders: [], departments: [], positions: [] };
@@ -317,10 +327,10 @@ export default function Dashboard() {
               <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Nivel de Riesgo por Dominios</h3>
               <div style={{ width: "100%", height: "300px" }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={barDataDomains} layout="vertical" margin={{ left: 50, right: 20 }}>
+                  <BarChart data={barDataDomains} layout="vertical" margin={{ left: 200, right: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border-color)" />
                     <XAxis type="number" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
-                    <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
+                    <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" fontSize={12} tickLine={false} width={200} />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="Puntaje" radius={[0, 4, 4, 0]} barSize={20}>
                         {barDataDomains.map((entry, index) => (
@@ -331,6 +341,31 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
             </div>
+
+            {/* Dimensions Radar Chart */}
+            {radarDataDimensions.length > 0 && (
+              <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px", marginBottom: "24px" }}>
+                <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Huella de Riesgo por Dimensiones (Anexos)</h3>
+                <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "-12px" }}>Visualiza el balance de vulnerabilidades y fortalezas a un mayor nivel de detalle.</p>
+                <div style={{ width: "100%", height: "450px", position: "relative" }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarDataDimensions}>
+                      <PolarGrid stroke="var(--border-color)" />
+                      <PolarAngleAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 11 }} />
+                      <PolarRadiusAxis angle={30} domain={[0, 15]} tick={{ fill: "var(--text-muted)", fontSize: 10 }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Radar
+                        name="Riesgo Promedio"
+                        dataKey="Puntaje"
+                        stroke="var(--color-primary)"
+                        fill="var(--color-primary)"
+                        fillOpacity={0.3}
+                      />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
 
             {/* Responses Table */}
             <div className="glass-card" style={{ overflow: "hidden" }}>

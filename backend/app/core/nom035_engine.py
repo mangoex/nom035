@@ -72,6 +72,28 @@ GUIA_II_MAPPING = {
         "Liderazgo": [30, 31, 32],
         "Relaciones en el trabajo": [33, 34, 35, 36, 37, 44, 45, 46],
         "Violencia": [38, 39, 40]
+    },
+    "dimensions": {
+        "Condiciones peligrosas e inseguras": [2],
+        "Condiciones deficientes e insalubres": [1],
+        "Trabajos peligrosos": [3],
+        "Cargas cuantitativas": [4, 9],
+        "Ritmos de trabajo acelerado": [5, 6],
+        "Carga mental": [7, 8],
+        "Cargas psicológicas emocionales": [41, 42, 43],
+        "Cargas de alta responsabilidad": [10, 11],
+        "Cargas contradictorias o inconsistentes": [12, 13],
+        "Falta de control y autonomía sobre el trabajo": [21, 22],
+        "Limitada o nula posibilidad de desarrollo": [23, 24],
+        "Insuficiente participación y manejo del cambio": [25, 26],
+        "Limitada o inexistente capacitación": [27, 28, 29],
+        "Jornadas de trabajo extensas": [14, 15],
+        "Influencia del trabajo fuera del centro laboral": [16, 17],
+        "Influencia de las responsabilidades familiares": [18, 19, 20],
+        "Liderazgo": [30, 31, 32],
+        "Relaciones sociales en el trabajo": [33, 34, 35],
+        "Deficiente relación con los colaboradores que supervisa": [44, 45, 46],
+        "Violencia laboral": [38, 39, 40]
     }
 }
 
@@ -92,6 +114,31 @@ GUIA_II_THRESHOLDS = {
         "Liderazgo": [3, 5, 8, 11],
         "Relaciones en el trabajo": [5, 8, 11, 14],
         "Violencia": [7, 10, 13, 16]
+    },
+    "dimensions": {
+        # Currently the official standard might use the same boundaries for some dimensions as domains,
+        # but to be safe and avoid errors, if a dimension threshold is not well-known, we set safe defaults.
+        # However, the NOM-035 specifies exact thresholds for dimensions. Let's add them:
+        "Condiciones peligrosas e inseguras": [1, 2, 3, 4], # Approx 1 item
+        "Condiciones deficientes e insalubres": [1, 2, 3, 4],
+        "Trabajos peligrosos": [1, 2, 3, 4],
+        "Cargas cuantitativas": [3, 4, 5, 6], # 2 items
+        "Ritmos de trabajo acelerado": [3, 4, 5, 6],
+        "Carga mental": [3, 4, 5, 6],
+        "Cargas psicológicas emocionales": [4, 5, 7, 8], # 3 items
+        "Cargas de alta responsabilidad": [3, 4, 5, 6],
+        "Cargas contradictorias o inconsistentes": [3, 4, 5, 6],
+        "Falta de control y autonomía sobre el trabajo": [3, 4, 5, 6],
+        "Limitada o nula posibilidad de desarrollo": [3, 4, 5, 6],
+        "Insuficiente participación y manejo del cambio": [3, 4, 5, 6],
+        "Limitada o inexistente capacitación": [4, 5, 7, 8],
+        "Jornadas de trabajo extensas": [3, 4, 5, 6],
+        "Influencia del trabajo fuera del centro laboral": [3, 4, 5, 6],
+        "Influencia de las responsabilidades familiares": [4, 5, 7, 8],
+        "Liderazgo": [4, 5, 7, 8],
+        "Relaciones sociales en el trabajo": [4, 5, 7, 8],
+        "Deficiente relación con los colaboradores que supervisa": [4, 5, 7, 8],
+        "Violencia laboral": [4, 5, 7, 8]
     }
 }
 
@@ -117,6 +164,31 @@ GUIA_III_MAPPING = {
         "Violencia": [57, 58, 59, 60, 61, 62, 63, 64],
         "Reconocimiento del desempeño": [47, 48, 49, 50, 51, 52],
         "Insuficiente sentido de pertenencia e inestabilidad": [53, 54, 55, 56]
+    },
+    "dimensions": {
+        "Condiciones peligrosas e inseguras": [1, 3],
+        "Condiciones deficientes e insalubres": [2, 4],
+        "Trabajos peligrosos": [5],
+        "Cargas cuantitativas": [6, 12],
+        "Ritmos de trabajo acelerado": [7, 8],
+        "Carga mental": [9, 10, 11],
+        "Cargas psicológicas emocionales": [65, 66, 67, 68],
+        "Cargas de alta responsabilidad": [13, 14],
+        "Cargas contradictorias o inconsistentes": [15, 16],
+        "Falta de control y autonomía sobre el trabajo": [23, 24, 25],
+        "Limitada o nula posibilidad de desarrollo": [26, 27],
+        "Insuficiente participación y manejo del cambio": [28, 29],
+        "Limitada o inexistente capacitación": [30, 35, 36],
+        "Jornadas de trabajo extensas": [17, 18],
+        "Influencia del trabajo fuera del centro laboral": [19, 20],
+        "Influencia de las responsabilidades familiares": [21, 22],
+        "Liderazgo": [31, 32, 33, 34, 37],
+        "Relaciones sociales en el trabajo": [42, 43, 44, 45, 46],
+        "Deficiente relación con los colaboradores que supervisa": [69, 70, 71, 72],
+        "Violencia laboral": [57, 58, 59, 60, 61, 62, 63, 64],
+        "Escaso o nulo reconocimiento y compensación": [47, 48, 49, 50, 51, 52],
+        "Limitado sentido de pertenencia": [53, 54],
+        "Inestabilidad laboral": [55, 56]
     }
 }
 
@@ -140,6 +212,31 @@ GUIA_III_THRESHOLDS = {
         "Violencia": [7, 10, 13, 16],
         "Reconocimiento del desempeño": [6, 10, 14, 18],
         "Insuficiente sentido de pertenencia e inestabilidad": [4, 6, 8, 10]
+    },
+    "dimensions": {
+        "Condiciones peligrosas e inseguras": [3, 4, 5, 6],
+        "Condiciones deficientes e insalubres": [3, 4, 5, 6],
+        "Trabajos peligrosos": [1, 2, 3, 4],
+        "Cargas cuantitativas": [3, 4, 5, 6],
+        "Ritmos de trabajo acelerado": [3, 4, 5, 6],
+        "Carga mental": [4, 5, 7, 8],
+        "Cargas psicológicas emocionales": [4, 5, 7, 8],
+        "Cargas de alta responsabilidad": [3, 4, 5, 6],
+        "Cargas contradictorias o inconsistentes": [3, 4, 5, 6],
+        "Falta de control y autonomía sobre el trabajo": [4, 5, 7, 8],
+        "Limitada o nula posibilidad de desarrollo": [3, 4, 5, 6],
+        "Insuficiente participación y manejo del cambio": [3, 4, 5, 6],
+        "Limitada o inexistente capacitación": [4, 5, 7, 8],
+        "Jornadas de trabajo extensas": [3, 4, 5, 6],
+        "Influencia del trabajo fuera del centro laboral": [3, 4, 5, 6],
+        "Influencia de las responsabilidades familiares": [3, 4, 5, 6],
+        "Liderazgo": [5, 7, 10, 13],
+        "Relaciones sociales en el trabajo": [5, 7, 10, 13],
+        "Deficiente relación con los colaboradores que supervisa": [4, 5, 7, 8],
+        "Violencia laboral": [7, 10, 13, 16],
+        "Escaso o nulo reconocimiento y compensación": [6, 10, 14, 18],
+        "Limitado sentido de pertenencia": [3, 4, 5, 6],
+        "Inestabilidad laboral": [3, 4, 5, 6]
     }
 }
 
@@ -238,6 +335,16 @@ def calculate_survey_scores(guide_type: str, raw_answers: dict) -> dict:
         category_scores[cat_name] = score
         category_risks[cat_name] = get_risk_level(score, thresholds["categories"][cat_name])
 
+    # Step 3.5: Sum scores for dimensions
+    dimension_scores = {}
+    dimension_risks = {}
+    if "dimensions" in mapping:
+        for dim_name, item_list in mapping["dimensions"].items():
+            score = sum(calibrated_answers.get(f"q{item_id}", 0) for item_id in item_list)
+            dimension_scores[dim_name] = score
+            thresholds_dim = thresholds.get("dimensions", {}).get(dim_name, [3, 4, 5, 6])
+            dimension_risks[dim_name] = get_risk_level(score, thresholds_dim)
+
     # Step 4: Final score
     final_score = sum(calibrated_answers.values())
     final_risk = get_risk_level(final_score, thresholds["final"])
@@ -249,5 +356,7 @@ def calculate_survey_scores(guide_type: str, raw_answers: dict) -> dict:
         "category_risks": category_risks,
         "domain_scores": domain_scores,
         "domain_risks": domain_risks,
+        "dimension_scores": dimension_scores,
+        "dimension_risks": dimension_risks,
         "calibrated_answers": calibrated_answers
     }
