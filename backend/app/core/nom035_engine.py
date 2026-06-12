@@ -54,24 +54,24 @@ def evaluate_guia_i(answers: dict) -> dict:
     }
 
 # --- GUIA II: Factores de Riesgo Psicosocial (16 - 50 colaboradores) ---
-GUIA_II_INVERSE_ITEMS = {1, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37}
+GUIA_II_INVERSE_ITEMS = {18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33}
 
 GUIA_II_MAPPING = {
     "categories": {
         "Ambiente de trabajo": [1, 2, 3],
-        "Factores propios de la actividad": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 21, 22, 23, 24, 25, 26, 27, 28, 29, 41, 42, 43],
-        "Organización del tiempo de trabajo": [14, 15, 16, 17, 18, 19, 20],
-        "Liderazgo y relaciones en el trabajo": [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 44, 45, 46]
+        "Factores propios de la actividad": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 41, 42, 43],
+        "Organización del tiempo de trabajo": [14, 15, 16, 17],
+        "Liderazgo y relaciones en el trabajo": [18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 44, 45, 46]
     },
     "domains": {
         "Condiciones en el ambiente de trabajo": [1, 2, 3],
         "Carga de trabajo": [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 41, 42, 43],
-        "Falta de control sobre el trabajo": [21, 22, 23, 24, 25, 26, 27, 28, 29],
+        "Falta de control sobre el trabajo": [18, 19, 20, 21, 22, 23, 24, 25, 26, 27],
         "Jornada de trabajo": [14, 15],
-        "Interferencia en la relación trabajo-familia": [16, 17, 18, 19, 20],
-        "Liderazgo": [30, 31, 32],
-        "Relaciones en el trabajo": [33, 34, 35, 36, 37, 44, 45, 46],
-        "Violencia": [38, 39, 40]
+        "Interferencia en la relación trabajo-familia": [16, 17],
+        "Liderazgo": [28, 29],
+        "Relaciones en el trabajo": [30, 31, 32, 33, 44, 45, 46],
+        "Violencia": [34, 35, 36, 37, 38, 39, 40]
     },
     "dimensions": {
         "Condiciones peligrosas e inseguras": [2],
@@ -83,17 +83,16 @@ GUIA_II_MAPPING = {
         "Cargas psicológicas emocionales": [41, 42, 43],
         "Cargas de alta responsabilidad": [10, 11],
         "Cargas contradictorias o inconsistentes": [12, 13],
-        "Falta de control y autonomía sobre el trabajo": [21, 22],
-        "Limitada o nula posibilidad de desarrollo": [23, 24],
-        "Insuficiente participación y manejo del cambio": [25, 26],
-        "Limitada o inexistente capacitación": [27, 28, 29],
+        "Falta de control y autonomía sobre el trabajo": [20, 21, 22],
+        "Limitada o nula posibilidad de desarrollo": [18, 19],
+        "Limitada o inexistente capacitación": [26, 27],
+        "Escasa claridad de funciones": [23, 24, 25],
         "Jornadas de trabajo extensas": [14, 15],
         "Influencia del trabajo fuera del centro laboral": [16, 17],
-        "Influencia de las responsabilidades familiares": [18, 19, 20],
-        "Liderazgo": [30, 31, 32],
-        "Relaciones sociales en el trabajo": [33, 34, 35],
+        "Características del liderazgo": [28, 29],
+        "Relaciones sociales en el trabajo": [30, 31, 32, 33],
         "Deficiente relación con los colaboradores que supervisa": [44, 45, 46],
-        "Violencia laboral": [38, 39, 40]
+        "Violencia laboral": [34, 35, 36, 37, 38, 39, 40]
     }
 }
 
@@ -103,7 +102,7 @@ GUIA_II_THRESHOLDS = {
         "Ambiente de trabajo": [3, 5, 7, 9],
         "Factores propios de la actividad": [10, 20, 30, 40],
         "Organización del tiempo de trabajo": [4, 6, 9, 12],
-        "Liderazgo y relaciones en el trabajo": [10, 18, 25, 32]
+        "Liderazgo y relaciones en el trabajo": [10, 18, 28, 38]
     },
     "domains": {
         "Condiciones en el ambiente de trabajo": [3, 5, 7, 9],
@@ -116,26 +115,22 @@ GUIA_II_THRESHOLDS = {
         "Violencia": [7, 10, 13, 16]
     },
     "dimensions": {
-        # Currently the official standard might use the same boundaries for some dimensions as domains,
-        # but to be safe and avoid errors, if a dimension threshold is not well-known, we set safe defaults.
-        # However, the NOM-035 specifies exact thresholds for dimensions. Let's add them:
-        "Condiciones peligrosas e inseguras": [1, 2, 3, 4], # Approx 1 item
+        "Condiciones peligrosas e inseguras": [1, 2, 3, 4],
         "Condiciones deficientes e insalubres": [1, 2, 3, 4],
         "Trabajos peligrosos": [1, 2, 3, 4],
-        "Cargas cuantitativas": [3, 4, 5, 6], # 2 items
+        "Cargas cuantitativas": [3, 4, 5, 6],
         "Ritmos de trabajo acelerado": [3, 4, 5, 6],
         "Carga mental": [3, 4, 5, 6],
-        "Cargas psicológicas emocionales": [4, 5, 7, 8], # 3 items
+        "Cargas psicológicas emocionales": [4, 5, 7, 8],
         "Cargas de alta responsabilidad": [3, 4, 5, 6],
         "Cargas contradictorias o inconsistentes": [3, 4, 5, 6],
         "Falta de control y autonomía sobre el trabajo": [3, 4, 5, 6],
         "Limitada o nula posibilidad de desarrollo": [3, 4, 5, 6],
-        "Insuficiente participación y manejo del cambio": [3, 4, 5, 6],
         "Limitada o inexistente capacitación": [4, 5, 7, 8],
+        "Escasa claridad de funciones": [4, 5, 7, 8],
         "Jornadas de trabajo extensas": [3, 4, 5, 6],
         "Influencia del trabajo fuera del centro laboral": [3, 4, 5, 6],
-        "Influencia de las responsabilidades familiares": [4, 5, 7, 8],
-        "Liderazgo": [4, 5, 7, 8],
+        "Características del liderazgo": [4, 5, 7, 8],
         "Relaciones sociales en el trabajo": [4, 5, 7, 8],
         "Deficiente relación con los colaboradores que supervisa": [4, 5, 7, 8],
         "Violencia laboral": [4, 5, 7, 8]
@@ -143,7 +138,7 @@ GUIA_II_THRESHOLDS = {
 }
 
 # --- GUIA III: Factores de Riesgo Psicosocial y Entorno Organizacional (> 50 colaboradores) ---
-GUIA_III_INVERSE_ITEMS = {1, 5, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56}
+GUIA_III_INVERSE_ITEMS = {1, 4, 23, 24, 25, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 55, 56, 57}
 
 GUIA_III_MAPPING = {
     "categories": {
@@ -175,20 +170,22 @@ GUIA_III_MAPPING = {
         "Cargas psicológicas emocionales": [65, 66, 67, 68],
         "Cargas de alta responsabilidad": [13, 14],
         "Cargas contradictorias o inconsistentes": [15, 16],
-        "Falta de control y autonomía sobre el trabajo": [23, 24, 25],
-        "Limitada o nula posibilidad de desarrollo": [26, 27],
-        "Insuficiente participación y manejo del cambio": [28, 29],
-        "Limitada o inexistente capacitación": [30, 35, 36],
+        "Falta de control y autonomía sobre el trabajo": [25, 26, 27, 28],
+        "Limitada o nula posibilidad de desarrollo": [23, 24],
+        "Insuficiente participación y manejo del cambio": [29, 30],
+        "Limitada o inexistente capacitación": [35, 36],
         "Jornadas de trabajo extensas": [17, 18],
         "Influencia del trabajo fuera del centro laboral": [19, 20],
         "Influencia de las responsabilidades familiares": [21, 22],
-        "Liderazgo": [31, 32, 33, 34, 37],
+        "Escasa claridad de funciones": [31, 32, 33, 34],
+        "Características del liderazgo": [37, 38, 39, 40, 41],
         "Relaciones sociales en el trabajo": [42, 43, 44, 45, 46],
         "Deficiente relación con los colaboradores que supervisa": [69, 70, 71, 72],
         "Violencia laboral": [57, 58, 59, 60, 61, 62, 63, 64],
-        "Escaso o nulo reconocimiento y compensación": [47, 48, 49, 50, 51, 52],
-        "Limitado sentido de pertenencia": [53, 54],
-        "Inestabilidad laboral": [55, 56]
+        "Escasa o nula retroalimentación del desempeño": [47, 48],
+        "Escaso o nulo reconocimiento y compensación": [49, 50, 51, 52],
+        "Limitado sentido de pertenencia": [55, 56],
+        "Inestabilidad laboral": [53, 54]
     }
 }
 
