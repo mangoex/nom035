@@ -85,6 +85,7 @@ class ActionPlan(Base):
     intervention_level = Column(String, nullable=False)  # 'first_level', 'second_level', 'third_level'
     status = Column(String, default="pending")  # 'pending', 'in_progress', 'completed'
     description = Column(String, nullable=False)
+    assigned_to = Column(String, nullable=True)
     due_date = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

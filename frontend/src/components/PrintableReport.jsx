@@ -269,6 +269,7 @@ export const PrintableReport = React.forwardRef(({ company, stats, tasks, sugges
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc", borderTop: "1px solid #cbd5e1", borderBottom: "2px solid #cbd5e1" }}>
                   <th style={{ padding: "10px", textAlign: "left", color: "#334155" }}>Descripción de la Acción</th>
+                  <th style={{ padding: "10px", textAlign: "left", color: "#334155", width: "120px" }}>Responsable</th>
                   <th style={{ padding: "10px", textAlign: "center", color: "#334155", width: "80px" }}>Nivel</th>
                   <th style={{ padding: "10px", textAlign: "center", color: "#334155", width: "100px" }}>Estado</th>
                 </tr>
@@ -277,6 +278,7 @@ export const PrintableReport = React.forwardRef(({ company, stats, tasks, sugges
                 {tasks.map((task, idx) => (
                   <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
                     <td style={{ padding: "10px", color: "#334155" }}>{task.description}</td>
+                    <td style={{ padding: "10px", color: "#3b82f6", fontWeight: "500", fontStyle: "italic" }}>{task.assigned_to || "-"}</td>
                     <td style={{ padding: "10px", textAlign: "center", fontWeight: "bold", color: "#64748b" }}>
                       {task.intervention_level === "first_level" ? "1°" : task.intervention_level === "second_level" ? "2°" : "3°"}
                     </td>

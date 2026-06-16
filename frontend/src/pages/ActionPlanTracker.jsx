@@ -34,6 +34,7 @@ export default function ActionPlanTracker() {
   const [newTask, setNewTask] = useState({
     intervention_level: "first_level",
     description: "",
+    assigned_to: "",
     due_date: ""
   });
   
@@ -72,6 +73,7 @@ export default function ActionPlanTracker() {
       setNewTask({
         intervention_level: "first_level",
         description: "",
+        assigned_to: "",
         due_date: ""
       });
     } catch (err) {
@@ -88,6 +90,7 @@ export default function ActionPlanTracker() {
       const res = await api.put(`/api/action_plan/tasks/${editingTask.id}`, {
         intervention_level: editingTask.intervention_level,
         description: editingTask.description,
+        assigned_to: editingTask.assigned_to || null,
         due_date: editingTask.due_date || null
       });
       setTasks(tasks.map(t => t.id === editingTask.id ? res.data : t));
@@ -235,6 +238,12 @@ export default function ActionPlanTracker() {
           {task.category_flagged && (
             <div style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "12px", fontStyle: "italic" }}>
               Origen: {task.category_flagged}
+            </div>
+          )}
+
+          {task.assigned_to && (
+            <div style={{ fontSize: "12px", color: "var(--color-primary)", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "600" }}>
+              <span>👤</span> {task.assigned_to}
             </div>
           )}
 
@@ -439,6 +448,18 @@ export default function ActionPlanTracker() {
                 </div>
 
                 <div className="form-group">
+                  <label className="form-label" htmlFor="assigned_to">Responsable</label>
+                  <input
+                    id="assigned_to"
+                    type="text"
+                    placeholder="Nombre del responsable"
+                    className="form-input"
+                    value={newTask.assigned_to}
+                    onChange={(e) => setNewTask({ ...newTask, assigned_to: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
                   <label className="form-label" htmlFor="due_date">Fecha Límite</label>
                   <input
                     id="due_date"
@@ -486,6 +507,17 @@ export default function ActionPlanTracker() {
                     style={{ height: "100px", resize: "none" }}
                     value={editingTask.description}
                     onChange={(e) => setEditingTask({ ...editingTask, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Responsable</label>
+                  <input
+                    type="text"
+                    placeholder="Nombre del responsable"
+                    className="form-input"
+                    value={editingTask.assigned_to || ""}
+                    onChange={(e) => setEditingTask({ ...editingTask, assigned_to: e.target.value })}
                   />
                 </div>
 
