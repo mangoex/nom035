@@ -31,9 +31,7 @@ def register(user_in: UserRegister, response: Response, request: Request, db: Se
         )
 
     emp_count = user_in.employee_count
-    if emp_count <= 15:
-        guide_type = "GUIA_I"
-    elif emp_count <= 50:
+    if emp_count <= 50:
         guide_type = "GUIA_II"
     else:
         guide_type = "GUIA_III"
