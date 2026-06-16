@@ -19,8 +19,13 @@ try:
         # Add assigned_to column if it doesn't exist
         try:
             conn.execute(text("ALTER TABLE action_plans ADD COLUMN assigned_to VARCHAR"))
-        except Exception as e:
-            # Column already exists or table doesn't exist yet, ignore
+        except Exception:
+            pass
+
+        # Add logo_url column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN logo_url VARCHAR"))
+        except Exception:
             pass
             
         # Update companies and sessions stuck on GUIA_I
@@ -60,6 +65,10 @@ app.include_router(survey.router, prefix="/api/survey", tags=["Survey"])
 app.include_router(action_plan.router, prefix="/api/action_plan", tags=["Action Plan"])
 
 backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # points to backend
+uploads_dir = os.path.join(backend_root, "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+
 frontend_dist = os.path.join(backend_root, "frontend", "dist")
 
 if os.path.exists(frontend_dist):

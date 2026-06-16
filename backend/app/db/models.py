@@ -13,6 +13,7 @@ class Company(Base):
     employee_count = Column(Integer, default=0)
     sector = Column(String, nullable=True)
     active_guide = Column(String, nullable=False)  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
+    logo_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships

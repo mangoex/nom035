@@ -8,6 +8,7 @@ import SurveyPublic from "./pages/SurveyPublic";
 import SurveyIntake from "./pages/SurveyIntake";
 import DocumentManager from "./pages/DocumentManager";
 import ActionPlanTracker from "./pages/ActionPlanTracker";
+import Settings from "./pages/Settings";
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -82,6 +83,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ActionPlanTracker />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/settings" 
+          element={
+            <ProtectedRoute>
+              <Settings />
             </ProtectedRoute>
           } 
         />

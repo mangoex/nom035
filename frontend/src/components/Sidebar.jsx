@@ -7,7 +7,8 @@ import {
   Kanban, 
   FileText, 
   LogOut,
-  Building
+  Building,
+  Settings
 } from "lucide-react";
 import api from "../utils/api";
 
@@ -38,7 +39,15 @@ export default function Sidebar({ company }) {
   return (
     <aside className="sidebar">
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "32px", paddingBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-        <Building size={28} style={{ color: "var(--color-success)" }} />
+        {company?.logo_url ? (
+          <img 
+            src={`http://localhost:8000${company.logo_url}`} 
+            alt="Logo Empresa" 
+            style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "4px", backgroundColor: "#fff", padding: "2px" }}
+          />
+        ) : (
+          <Building size={28} style={{ color: "var(--color-success)" }} />
+        )}
         <div>
           <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "160px" }}>
             {company?.name || "Mi Empresa"}
@@ -80,30 +89,55 @@ export default function Sidebar({ company }) {
         })}
       </nav>
 
-      <button
-        onClick={handleLogout}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "12px",
-          padding: "12px 16px",
-          width: "100%",
-          borderRadius: "var(--radius-sm)",
-          color: "#f87171",
-          backgroundColor: "transparent",
-          border: "none",
-          cursor: "pointer",
-          fontSize: "14px",
-          fontWeight: "500",
-          textAlign: "left",
-          transition: "all 0.2s ease"
-        }}
-        onMouseEnter={(e) => e.target.style.backgroundColor = "rgba(239, 68, 68, 0.05)"}
-        onMouseLeave={(e) => e.target.style.backgroundColor = "transparent"}
-      >
-        <LogOut size={20} />
-        Cerrar Sesión
-      </button>
+      <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+        <Link
+          to="/settings"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            padding: "12px 16px",
+            width: "100%",
+            borderRadius: "var(--radius-sm)",
+            color: "#cbd5e1",
+            backgroundColor: "transparent",
+            textDecoration: "none",
+            fontSize: "14px",
+            fontWeight: "500",
+            transition: "all 0.2s ease"
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+        >
+          <Settings size={20} />
+          Configuración
+        </Link>
+        
+        <button
+          onClick={handleLogout}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            padding: "12px 16px",
+            width: "100%",
+            borderRadius: "var(--radius-sm)",
+            color: "#f87171",
+            backgroundColor: "transparent",
+            border: "none",
+            cursor: "pointer",
+            fontSize: "14px",
+            fontWeight: "500",
+            textAlign: "left",
+            transition: "all 0.2s ease"
+          }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(248, 113, 113, 0.1)"}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+        >
+          <LogOut size={20} />
+          Cerrar Sesión
+        </button>
+      </div>
     </aside>
   );
 }
