@@ -8,8 +8,26 @@ from fastapi.staticfiles import StaticFiles
 from backend.app.db.session import engine, Base
 from backend.app.api.endpoints import auth, company, survey, action_plan
 
+from sqlalchemy import text
+
 # Bootstrap database tables
 Base.metadata.create_all(bind=engine)
+
+# Auto-migrate production database (safe to run on startup)
+try:
+    with engine.begin() as conn:
+        # Add assigned_to column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE action_plans ADD COLUMN assigned_to VARCHAR"))
+        except Exception as e:
+            # Column already exists or table doesn't exist yet, ignore
+            pass
+            
+        # Update companies and sessions stuck on GUIA_I
+        conn.execute(text("UPDATE companies SET active_guide = 'GUIA_II' WHERE active_guide = 'GUIA_I'"))
+        conn.execute(text("UPDATE survey_sessions SET guide_type = 'GUIA_II' WHERE guide_type = 'GUIA_I'"))
+except Exception as e:
+    print("Auto-migration skipped or failed:", e)
 
 app = FastAPI(
     title="Sistema de Gestión NOM-035 API",
