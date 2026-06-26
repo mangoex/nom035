@@ -129,7 +129,41 @@ export default function Sidebar({ company }) {
         })}
       </nav>
 
-      <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: "5px", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "16px", marginTop: "16px" }}>
+        {user && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            padding: "8px 12px 12px 12px",
+            marginBottom: "8px",
+            borderBottom: "1px solid rgba(255,255,255,0.06)",
+          }}>
+            <div style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              backgroundColor: "rgba(99, 102, 241, 0.2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "var(--color-primary)",
+              fontWeight: "700",
+              fontSize: "14px",
+              flexShrink: 0
+            }}>
+              {user.name ? user.name[0].toUpperCase() : "U"}
+            </div>
+            <div style={{ overflow: "hidden", display: "flex", flexDirection: "column", flex: 1 }}>
+              <span style={{ fontSize: "13px", fontWeight: "600", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={user.name}>
+                {user.name}
+              </span>
+              <span style={{ fontSize: "11px", color: "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={user.email}>
+                {user.email}
+              </span>
+            </div>
+          </div>
+        )}
         {!isSuperadmin && !isConsultant && (
           <Link
             to="/settings"
