@@ -27,7 +27,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=True)  # Nullable for superadmin
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True)  # Nullable for superadmin
     role = Column(String, nullable=False)  # 'superadmin', 'company_admin'
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
@@ -44,7 +44,7 @@ class SurveySession(Base):
     __tablename__ = "survey_sessions"
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
     guide_type = Column(String, nullable=False)  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
     link_hash = Column(String, unique=True, index=True, nullable=False)
     is_active = Column(Boolean, default=True)
@@ -68,8 +68,8 @@ class SurveyResponse(Base):
     __tablename__ = "survey_responses"
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
-    survey_session_id = Column(Integer, ForeignKey("survey_sessions.id", ondelete="CASCADE"), nullable=True) # Nullable if CSV uploaded
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    survey_session_id = Column(Integer, ForeignKey("survey_sessions.id", ondelete="CASCADE"), nullable=True, index=True) # Nullable if CSV uploaded
     
     # JSON containing demographics: {age_range, gender, department, position}
     demographics = Column(JSON, nullable=False)
@@ -91,7 +91,7 @@ class ActionPlan(Base):
     __tablename__ = "action_plans"
 
     id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
     category_flagged = Column(String, nullable=True)
     domain_flagged = Column(String, nullable=True)
     intervention_level = Column(String, nullable=False)  # 'first_level', 'second_level', 'third_level'

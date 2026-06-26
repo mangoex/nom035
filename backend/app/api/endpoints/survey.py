@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, date
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company, SurveySession, SurveyResponse, ActionPlan
 from backend.app.schemas.survey import SurveySessionOut, SurveyResponseCreate, SurveySessionCreate
@@ -388,7 +388,40 @@ from typing import Optional
 
 from datetime import datetime
 
+from datetime import time
+
+def get_filtered_responses_query(db: Session, company_id: int, age_range, gender, department, position, start_date=None, end_date=None):
+    query = db.query(SurveyResponse).filter(SurveyResponse.company_id == company_id)
+    
+    if age_range:
+        query = query.filter(SurveyResponse.demographics["age_range"].as_string() == age_range)
+    if gender:
+        query = query.filter(SurveyResponse.demographics["gender"].as_string() == gender)
+    if department:
+        query = query.filter(SurveyResponse.demographics["department"].as_string() == department)
+    if position:
+        query = query.filter(SurveyResponse.demographics["position"].as_string() == position)
+        
+    if start_date:
+        try:
+            sd = datetime.fromisoformat(start_date)
+            sd_dt = datetime.combine(sd.date(), time(0, 0, 0))
+            query = query.filter(SurveyResponse.created_at >= sd_dt)
+        except ValueError:
+            pass
+            
+    if end_date:
+        try:
+            ed = datetime.fromisoformat(end_date)
+            ed_dt = datetime.combine(ed.date(), time(23, 59, 59))
+            query = query.filter(SurveyResponse.created_at <= ed_dt)
+        except ValueError:
+            pass
+            
+    return query
+
 def filter_responses(responses, age_range, gender, department, position, start_date=None, end_date=None):
+    # Backward compatible fallback for other places if any (e.g. tests)
     filtered = []
     for r in responses:
         d = r.demographics
@@ -425,13 +458,24 @@ def get_survey_statistics(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    all_responses = db.query(SurveyResponse).filter(
-        SurveyResponse.company_id == current_user.company_id
-    ).all()
-    
-    responses = filter_responses(all_responses, age_range, gender, department, position, start_date, end_date)
+    # Fetch only filtered responses from DB
+    query = get_filtered_responses_query(
+        db, current_user.company_id, age_range, gender, department, position, start_date, end_date
+    )
+    responses = query.all()
     
     if not responses:
+        # Fetch only demographics column for available filters to avoid overhead
+        all_demographics = db.query(SurveyResponse.demographics).filter(
+            SurveyResponse.company_id == current_user.company_id
+        ).all()
+        
+        available_filters = {
+            "age_ranges": sorted(list(set(d[0].get("age_range", "") for d in all_demographics if d[0] and d[0].get("age_range")))),
+            "genders": sorted(list(set(d[0].get("gender", "") for d in all_demographics if d[0] and d[0].get("gender")))),
+            "departments": sorted(list(set(d[0].get("department", "") for d in all_demographics if d[0] and d[0].get("department")))),
+            "positions": sorted(list(set(d[0].get("position", "") for d in all_demographics if d[0] and d[0].get("position"))))
+        }
         return {
             "total_responses": 0,
             "requires_clinical_referral_count": 0,
@@ -441,7 +485,8 @@ def get_survey_statistics(
             "domain_averages": {},
             "domain_risks": {},
             "dimension_averages": {},
-            "dimension_risks": {}
+            "dimension_risks": {},
+            "available_filters": available_filters
         }
         
     total = len(responses)
@@ -474,12 +519,6 @@ def get_survey_statistics(
             for cat, val in scores["category_scores"].items():
                 category_scores_sum[cat] = category_scores_sum.get(cat, 0.0) + val
                 category_counts[cat] = category_counts.get(cat, 0) + 1
-        if "category_risks" in scores:
-            # We track the highest risk seen, or we recalculate the average risk?
-            # It's better to calculate the average score and then use nom035_engine to get the risk level of that average?
-            # Or just provide the raw averages and let the frontend determine the risk based on the tables. 
-            # Actually, the user asked to identify those with the highest risk. The frontend can just use the score.
-            pass
                 
         if "domain_scores" in scores:
             for dom, val in scores["domain_scores"].items():
@@ -493,8 +532,6 @@ def get_survey_statistics(
 
     from backend.app.core.nom035_engine import get_risk_level, GUIA_II_THRESHOLDS, GUIA_III_THRESHOLDS
     
-    # We need to know which guide to apply the thresholds. 
-    # Since a company can only have one active_guide, we use the company's active guide.
     guide_type = current_user.company.active_guide if hasattr(current_user, "company") and current_user.company else "GUIA_III"
     thresholds = GUIA_II_THRESHOLDS if guide_type == "GUIA_II" else GUIA_III_THRESHOLDS
     
@@ -530,18 +567,21 @@ def get_survey_statistics(
         for risk, count in final_risks.items()
     }
     
-    # Calculate global average score and its risk
     total_score = sum(r.calculated_scores.get("final_score", 0) for r in responses if "final_score" in r.calculated_scores)
     total_scored_responses = sum(1 for r in responses if "final_score" in r.calculated_scores)
     global_score_average = round(total_score / total_scored_responses, 2) if total_scored_responses > 0 else 0
     global_score_risk = get_risk_level(global_score_average, thresholds["final"])
     
-    # Extract unique filter options from ALL responses (unfiltered) to populate dropdowns
+    # Fetch only demographics column for available filters to avoid overhead
+    all_demographics = db.query(SurveyResponse.demographics).filter(
+        SurveyResponse.company_id == current_user.company_id
+    ).all()
+    
     available_filters = {
-        "age_ranges": sorted(list(set(r.demographics.get("age_range", "") for r in all_responses if r.demographics.get("age_range")))),
-        "genders": sorted(list(set(r.demographics.get("gender", "") for r in all_responses if r.demographics.get("gender")))),
-        "departments": sorted(list(set(r.demographics.get("department", "") for r in all_responses if r.demographics.get("department")))),
-        "positions": sorted(list(set(r.demographics.get("position", "") for r in all_responses if r.demographics.get("position"))))
+        "age_ranges": sorted(list(set(d[0].get("age_range", "") for d in all_demographics if d[0] and d[0].get("age_range")))),
+        "genders": sorted(list(set(d[0].get("gender", "") for d in all_demographics if d[0] and d[0].get("gender")))),
+        "departments": sorted(list(set(d[0].get("department", "") for d in all_demographics if d[0] and d[0].get("department")))),
+        "positions": sorted(list(set(d[0].get("position", "") for d in all_demographics if d[0] and d[0].get("position"))))
     }
     
     return {
@@ -570,11 +610,12 @@ def get_survey_responses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    all_responses = db.query(SurveyResponse).filter(
-        SurveyResponse.company_id == current_user.company_id
-    ).all()
-    
-    filtered_responses = filter_responses(all_responses, age_range, gender, department, position, start_date, end_date)
+    query = get_filtered_responses_query(
+        db, current_user.company_id, age_range, gender, department, position, start_date, end_date
+    )
+    # Defer the loading of the massive raw answers column to optimize dashboard load speed
+    query = query.options(defer(SurveyResponse.answers))
+    filtered_responses = query.all()
     
     data = []
     for r in filtered_responses:

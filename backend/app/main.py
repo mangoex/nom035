@@ -61,6 +61,28 @@ try:
             conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN clave_secreta VARCHAR"))
         except Exception:
             pass
+
+        # Create indexes if they don't exist (works for both SQLite and PostgreSQL)
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_company_id ON users (company_id)"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_survey_sessions_company_id ON survey_sessions (company_id)"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_survey_responses_company_id ON survey_responses (company_id)"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_survey_responses_survey_session_id ON survey_responses (survey_session_id)"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_action_plans_company_id ON action_plans (company_id)"))
+        except Exception:
+            pass
 except Exception as e:
     print("Auto-migration skipped or failed:", e)
 
