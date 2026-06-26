@@ -14,6 +14,7 @@ import SuperadminConsultants from "./pages/SuperadminConsultants";
 import ConsultantDashboard from "./pages/ConsultantDashboard";
 import ConsultantCompanies from "./pages/ConsultantCompanies";
 import ConsultantUsers from "./pages/ConsultantUsers";
+import CompanyTrainings from "./pages/CompanyTrainings";
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -172,6 +173,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ActionPlanTracker />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/trainings" 
+          element={
+            <ProtectedRoute>
+              <CompanyTrainings />
             </ProtectedRoute>
           } 
         />

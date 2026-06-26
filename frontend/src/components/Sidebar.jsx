@@ -9,7 +9,8 @@ import {
   LogOut,
   Building,
   Settings,
-  Users
+  Users,
+  BookOpen
 } from "lucide-react";
 import api from "../utils/api";
 
@@ -96,6 +97,7 @@ export default function Sidebar({ company }) {
     { path: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
     { path: "/intake", label: "Captura de Datos", icon: <ClipboardList size={20} /> },
     { path: "/action-plan", label: "Plan de Acción", icon: <Kanban size={20} /> },
+    { path: "/trainings", label: "Capacitaciones", icon: <BookOpen size={20} /> },
     { path: "/documents", label: "Gestión Documental", icon: <FileText size={20} /> },
   ];
 

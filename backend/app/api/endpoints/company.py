@@ -94,3 +94,21 @@ def upload_logo(
     db.refresh(company)
     
     return {"logo_url": company.logo_url}
+
+@router.get("/consultant-trainings")
+def get_consultant_trainings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada.")
+        
+    if not company.consultant_id:
+        return []
+        
+    consultant = db.query(User).filter(User.id == company.consultant_id, User.role == "consultor").first()
+    if not consultant or not consultant.capacitaciones:
+        return []
+        
+    return consultant.capacitaciones
