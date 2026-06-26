@@ -22,6 +22,8 @@ class UserOut(BaseModel):
     email: EmailStr
     role: str
     company_id: Optional[int] = None
+    cedula_profesional: Optional[str] = None
+    creditos: Optional[int] = None
     created_at: datetime.datetime
 
     class Config:

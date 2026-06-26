@@ -9,20 +9,43 @@ import SurveyIntake from "./pages/SurveyIntake";
 import DocumentManager from "./pages/DocumentManager";
 import ActionPlanTracker from "./pages/ActionPlanTracker";
 import Settings from "./pages/Settings";
+import SuperadminCompanies from "./pages/SuperadminCompanies";
+import SuperadminConsultants from "./pages/SuperadminConsultants";
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
-  const user = localStorage.getItem("user");
-  if (!user) {
+  const userStr = localStorage.getItem("user");
+  if (!userStr) {
     return <Navigate to="/login" replace />;
+  }
+  const user = JSON.parse(userStr);
+  if (user.role === "superadmin") {
+    return <Navigate to="/superadmin/companies" replace />;
+  }
+  return children;
+};
+
+// Superadmin Exclusive Route Wrapper
+const SuperadminRoute = ({ children }) => {
+  const userStr = localStorage.getItem("user");
+  if (!userStr) {
+    return <Navigate to="/login" replace />;
+  }
+  const user = JSON.parse(userStr);
+  if (user.role !== "superadmin") {
+    return <Navigate to="/dashboard" replace />;
   }
   return children;
 };
 
 // Public Route Wrapper (redirect to dashboard if already logged in)
 const PublicRoute = ({ children }) => {
-  const user = localStorage.getItem("user");
-  if (user) {
+  const userStr = localStorage.getItem("user");
+  if (userStr) {
+    const user = JSON.parse(userStr);
+    if (user.role === "superadmin") {
+      return <Navigate to="/superadmin/companies" replace />;
+    }
     return <Navigate to="/dashboard" replace />;
   }
   return children;
@@ -52,6 +75,24 @@ export default function App() {
 
         {/* Public Survey Path */}
         <Route path="/survey/public/:linkHash" element={<SurveyPublic />} />
+
+        {/* Superadmin Exclusive Paths */}
+        <Route 
+          path="/superadmin/companies" 
+          element={
+            <SuperadminRoute>
+              <SuperadminCompanies />
+            </SuperadminRoute>
+          } 
+        />
+        <Route 
+          path="/superadmin/consultants" 
+          element={
+            <SuperadminRoute>
+              <SuperadminConsultants />
+            </SuperadminRoute>
+          } 
+        />
 
         {/* Protected Admin Dashboard Paths */}
         <Route 

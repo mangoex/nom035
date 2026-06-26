@@ -8,7 +8,8 @@ import {
   FileText, 
   LogOut,
   Building,
-  Settings
+  Settings,
+  Users
 } from "lucide-react";
 import api from "../utils/api";
 
@@ -29,7 +30,14 @@ export default function Sidebar({ company }) {
     }
   };
 
-  const navItems = [
+  const userStr = localStorage.getItem("user");
+  const user = userStr ? JSON.parse(userStr) : null;
+  const isSuperadmin = user?.role === "superadmin";
+
+  const navItems = isSuperadmin ? [
+    { path: "/superadmin/companies", label: "Empresas", icon: <Building size={20} /> },
+    { path: "/superadmin/consultants", label: "Consultores", icon: <Users size={20} /> },
+  ] : [
     { path: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
     { path: "/intake", label: "Captura de Datos", icon: <ClipboardList size={20} /> },
     { path: "/action-plan", label: "Plan de Acción", icon: <Kanban size={20} /> },
@@ -39,25 +47,41 @@ export default function Sidebar({ company }) {
   return (
     <aside className="sidebar">
       <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "32px", paddingBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
-        {company?.logo_url ? (
-          <img 
-            src={`http://localhost:8000${company.logo_url}`} 
-            alt="Logo Empresa" 
-            style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "4px", backgroundColor: "#fff", padding: "2px" }}
-          />
+        {isSuperadmin ? (
+          <>
+            <Building size={28} style={{ color: "var(--color-primary)" }} />
+            <div>
+              <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff" }}>
+                NOM-035 Admin
+              </h2>
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600" }}>
+                Panel del Sistema
+              </span>
+            </div>
+          </>
         ) : (
-          <Building size={28} style={{ color: "var(--color-success)" }} />
+          <>
+            {company?.logo_url ? (
+              <img 
+                src={`http://localhost:8000${company.logo_url}`} 
+                alt="Logo Empresa" 
+                style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "4px", backgroundColor: "#fff", padding: "2px" }}
+              />
+            ) : (
+              <Building size={28} style={{ color: "var(--color-success)" }} />
+            )}
+            <div>
+              <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "160px" }}>
+                {company?.name || "Mi Empresa"}
+              </h2>
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600" }}>
+                {company?.active_guide === "GUIA_I" ? "Guía I (Hasta 15 emp)" : 
+                 company?.active_guide === "GUIA_II" ? "Guía II (16-50 emp)" : 
+                 "Guía III (>50 emp)"}
+              </span>
+            </div>
+          </>
         )}
-        <div>
-          <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "160px" }}>
-            {company?.name || "Mi Empresa"}
-          </h2>
-          <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600" }}>
-            {company?.active_guide === "GUIA_I" ? "Guía I (Hasta 15 emp)" : 
-             company?.active_guide === "GUIA_II" ? "Guía II (16-50 emp)" : 
-             "Guía III (>50 emp)"}
-          </span>
-        </div>
       </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: "8px", flex: 1 }}>
@@ -90,28 +114,30 @@ export default function Sidebar({ company }) {
       </nav>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-        <Link
-          to="/settings"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            padding: "12px 16px",
-            width: "100%",
-            borderRadius: "var(--radius-sm)",
-            color: "#cbd5e1",
-            backgroundColor: "transparent",
-            textDecoration: "none",
-            fontSize: "14px",
-            fontWeight: "500",
-            transition: "all 0.2s ease"
-          }}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
-        >
-          <Settings size={20} />
-          Configuración
-        </Link>
+        {!isSuperadmin && (
+          <Link
+            to="/settings"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              padding: "12px 16px",
+              width: "100%",
+              borderRadius: "var(--radius-sm)",
+              color: "#cbd5e1",
+              backgroundColor: "transparent",
+              textDecoration: "none",
+              fontSize: "14px",
+              fontWeight: "500",
+              transition: "all 0.2s ease"
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+          >
+            <Settings size={20} />
+            Configuración
+          </Link>
+        )}
         
         <button
           onClick={handleLogout}
