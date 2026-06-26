@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from backend.app.db.session import engine, Base
-from backend.app.api.endpoints import auth, company, survey, action_plan, superadmin
+from backend.app.api.endpoints import auth, company, survey, action_plan, superadmin, consultant
 
 from sqlalchemy import text
 
@@ -25,6 +25,18 @@ try:
         # Add logo_url column if it doesn't exist
         try:
             conn.execute(text("ALTER TABLE companies ADD COLUMN logo_url VARCHAR"))
+        except Exception:
+            pass
+
+        # Add consultant_id column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN consultant_id INTEGER"))
+        except Exception:
+            pass
+
+        # Add index for consultant_id if it doesn't exist
+        try:
+            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_companies_consultant_id ON companies (consultant_id)"))
         except Exception:
             pass
 
@@ -140,6 +152,7 @@ app.include_router(company.router, prefix="/api/company", tags=["Company"])
 app.include_router(survey.router, prefix="/api/survey", tags=["Survey"])
 app.include_router(action_plan.router, prefix="/api/action_plan", tags=["Action Plan"])
 app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Superadmin"])
+app.include_router(consultant.router, prefix="/api/consultant", tags=["Consultant"])
 
 backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # points to backend
 from backend.app.db.session import get_uploads_dir

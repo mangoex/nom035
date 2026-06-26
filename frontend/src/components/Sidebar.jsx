@@ -33,10 +33,14 @@ export default function Sidebar({ company }) {
   const userStr = localStorage.getItem("user");
   const user = userStr ? JSON.parse(userStr) : null;
   const isSuperadmin = user?.role === "superadmin";
+  const isConsultant = user?.role === "consultor";
 
   const navItems = isSuperadmin ? [
     { path: "/superadmin/companies", label: "Empresas", icon: <Building size={20} /> },
     { path: "/superadmin/consultants", label: "Consultores", icon: <Users size={20} /> },
+  ] : isConsultant ? [
+    { path: "/consultant/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
+    { path: "/consultant/companies", label: "Empresas", icon: <Building size={20} /> },
   ] : [
     { path: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
     { path: "/intake", label: "Captura de Datos", icon: <ClipboardList size={20} /> },
@@ -56,6 +60,18 @@ export default function Sidebar({ company }) {
               </h2>
               <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600" }}>
                 Panel del Sistema
+              </span>
+            </div>
+          </>
+        ) : isConsultant ? (
+          <>
+            <Building size={28} style={{ color: "var(--color-primary)" }} />
+            <div>
+              <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff" }}>
+                NOM-035 Consultor
+              </h2>
+              <span style={{ fontSize: "11px", color: "var(--text-muted)", fontWeight: "600" }}>
+                Panel de Consultoría
               </span>
             </div>
           </>
@@ -114,7 +130,7 @@ export default function Sidebar({ company }) {
       </nav>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-        {!isSuperadmin && (
+        {!isSuperadmin && !isConsultant && (
           <Link
             to="/settings"
             style={{

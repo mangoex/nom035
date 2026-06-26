@@ -23,6 +23,7 @@ class CompanyOut(BaseModel):
     sector: Optional[str]
     active_guide: str  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
     logo_url: Optional[str] = None
+    consultant_id: Optional[int] = None
     created_at: datetime.datetime
 
     class Config:

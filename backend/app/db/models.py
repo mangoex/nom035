@@ -14,10 +14,12 @@ class Company(Base):
     sector = Column(String, nullable=True)
     active_guide = Column(String, nullable=False)  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
     logo_url = Column(String, nullable=True)
+    consultant_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
-    users = relationship("User", back_populates="company", cascade="all, delete-orphan")
+    users = relationship("User", back_populates="company", cascade="all, delete-orphan", foreign_keys="[User.company_id]")
+    consultant = relationship("User", foreign_keys=[consultant_id], backref="consultant_companies")
     survey_sessions = relationship("SurveySession", back_populates="company", cascade="all, delete-orphan")
     survey_responses = relationship("SurveyResponse", back_populates="company", cascade="all, delete-orphan")
     action_plans = relationship("ActionPlan", back_populates="company", cascade="all, delete-orphan")
@@ -37,7 +39,7 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
-    company = relationship("Company", back_populates="users")
+    company = relationship("Company", back_populates="users", foreign_keys=[company_id])
 
 
 class SurveySession(Base):

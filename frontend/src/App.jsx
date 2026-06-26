@@ -11,6 +11,8 @@ import ActionPlanTracker from "./pages/ActionPlanTracker";
 import Settings from "./pages/Settings";
 import SuperadminCompanies from "./pages/SuperadminCompanies";
 import SuperadminConsultants from "./pages/SuperadminConsultants";
+import ConsultantDashboard from "./pages/ConsultantDashboard";
+import ConsultantCompanies from "./pages/ConsultantCompanies";
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -21,6 +23,9 @@ const ProtectedRoute = ({ children }) => {
   const user = JSON.parse(userStr);
   if (user.role === "superadmin") {
     return <Navigate to="/superadmin/companies" replace />;
+  }
+  if (user.role === "consultor") {
+    return <Navigate to="/consultant/dashboard" replace />;
   }
   return children;
 };
@@ -38,6 +43,19 @@ const SuperadminRoute = ({ children }) => {
   return children;
 };
 
+// Consultant Exclusive Route Wrapper
+const ConsultantRoute = ({ children }) => {
+  const userStr = localStorage.getItem("user");
+  if (!userStr) {
+    return <Navigate to="/login" replace />;
+  }
+  const user = JSON.parse(userStr);
+  if (user.role !== "consultor") {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
 // Public Route Wrapper (redirect to dashboard if already logged in)
 const PublicRoute = ({ children }) => {
   const userStr = localStorage.getItem("user");
@@ -45,6 +63,9 @@ const PublicRoute = ({ children }) => {
     const user = JSON.parse(userStr);
     if (user.role === "superadmin") {
       return <Navigate to="/superadmin/companies" replace />;
+    }
+    if (user.role === "consultor") {
+      return <Navigate to="/consultant/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
   }
@@ -91,6 +112,24 @@ export default function App() {
             <SuperadminRoute>
               <SuperadminConsultants />
             </SuperadminRoute>
+          } 
+        />
+
+        {/* Consultant Exclusive Paths */}
+        <Route 
+          path="/consultant/dashboard" 
+          element={
+            <ConsultantRoute>
+              <ConsultantDashboard />
+            </ConsultantRoute>
+          } 
+        />
+        <Route 
+          path="/consultant/companies" 
+          element={
+            <ConsultantRoute>
+              <ConsultantCompanies />
+            </ConsultantRoute>
           } 
         />
 

@@ -98,3 +98,12 @@ def get_current_superadmin(current_user: User = Depends(get_current_user)) -> Us
             detail="Solo el Super Administrador puede realizar esta acción."
         )
     return current_user
+
+# Dependency to check if current user is consultant
+def get_current_consultant(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "consultor":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo el Consultor puede realizar esta acción."
+        )
+    return current_user
