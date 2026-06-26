@@ -1,5 +1,6 @@
 // frontend/src/pages/SurveyIntake.jsx
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Link2, 
   Download, 
@@ -24,6 +25,7 @@ import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
 
 export default function SurveyIntake() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState(null);
   const [sessions, setSessions] = useState([]);
@@ -51,6 +53,13 @@ export default function SurveyIntake() {
   const [file, setFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [uploadResult, setUploadResult] = useState(null);
+
+  // Results password modal state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
+  const [enteredPassword, setEnteredPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [verifyingPassword, setVerifyingPassword] = useState(false);
 
   const fetchSessionData = async () => {
     try {
@@ -131,6 +140,39 @@ export default function SurveyIntake() {
     navigator.clipboard.writeText(url);
     setCopiedId(session.id);
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleViewResults = (session) => {
+    if (session.guide_type === "GUIA_I" && session.clave_secreta) {
+      setSelectedSession(session);
+      setEnteredPassword("");
+      setPasswordError("");
+      setShowPasswordModal(true);
+    } else {
+      navigate(`/dashboard?session_id=${session.id}`);
+    }
+  };
+
+  const handleVerifyResultsClave = async (e) => {
+    e.preventDefault();
+    setPasswordError("");
+    setVerifyingPassword(true);
+    try {
+      // Validate key by fetching stats
+      await api.get(`/api/survey/stats?survey_session_id=${selectedSession.id}&clave=${encodeURIComponent(enteredPassword)}`);
+      
+      // Save password in sessionStorage so Dashboard can fetch it
+      sessionStorage.setItem(`session_key_${selectedSession.id}`, enteredPassword);
+      
+      // Close modal and navigate
+      setShowPasswordModal(false);
+      navigate(`/dashboard?session_id=${selectedSession.id}`);
+    } catch (err) {
+      console.error(err);
+      setPasswordError(err.response?.data?.detail || "Clave secreta incorrecta.");
+    } finally {
+      setVerifyingPassword(false);
+    }
   };
 
   const handleDownloadTemplate = async () => {
@@ -391,7 +433,7 @@ export default function SurveyIntake() {
                   <th>Vigencia</th>
                   <th>Respuestas</th>
                   <th>Estatus</th>
-                  <th style={{ textAlign: "right" }}>Enlace Público</th>
+                  <th style={{ textAlign: "right" }}>Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -434,24 +476,35 @@ export default function SurveyIntake() {
                           </span>
                         </td>
                         <td style={{ textAlign: "right" }}>
-                          <button
-                            onClick={() => handleCopyLink(s)}
-                            disabled={isExpired}
-                            className="btn btn-secondary"
-                            style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px" }}
-                          >
-                            {copiedId === s.id ? (
-                              <>
-                                <Check size={14} style={{ color: "var(--color-success)" }} />
-                                Copiado
-                              </>
-                            ) : (
-                              <>
-                                <Copy size={14} />
-                                Copiar Link
-                              </>
-                            )}
-                          </button>
+                          <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", alignItems: "center" }}>
+                            <button
+                              onClick={() => handleViewResults(s)}
+                              className="btn btn-primary"
+                              style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px", alignItems: "center" }}
+                            >
+                              <Eye size={14} />
+                              Ver Resultados
+                            </button>
+                            
+                            <button
+                              onClick={() => handleCopyLink(s)}
+                              disabled={isExpired}
+                              className="btn btn-secondary"
+                              style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px", alignItems: "center" }}
+                            >
+                              {copiedId === s.id ? (
+                                <>
+                                  <Check size={14} style={{ color: "var(--color-success)" }} />
+                                  Copiado
+                                </>
+                              ) : (
+                                <>
+                                  <Copy size={14} />
+                                  Copiar Link
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -581,14 +634,14 @@ export default function SurveyIntake() {
 
                 {formData.guide_type === "GUIA_I" && (
                   <div className="form-group">
-                    <label className="form-label" htmlFor="m_clave">Clave Secreta para Acceder</label>
+                    <label className="form-label" htmlFor="m_clave">Clave Secreta para ver Resultados</label>
                     <div style={{ position: "relative" }}>
                       <Lock size={16} style={{ position: "absolute", left: "12px", top: "12px", color: "var(--text-muted)" }} />
                       <input
                         id="m_clave"
                         type="text"
                         required
-                        placeholder="Define la contraseña requerida para responder"
+                        placeholder="Define la clave requerida para ver los resultados"
                         className="form-input"
                         style={{ paddingLeft: "36px" }}
                         value={formData.clave_secreta}
@@ -604,6 +657,70 @@ export default function SurveyIntake() {
                   </button>
                   <button type="submit" disabled={submitLoading} className="btn btn-primary">
                     {submitLoading ? "Creando..." : "Generar Liga de Encuesta"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: VERIFY RESULTS SECRET KEY */}
+        {showPasswordModal && selectedSession && (
+          <div style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.45)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px"
+          }}>
+            <div className="glass-card animate-slide-up" style={{ width: "100%", maxWidth: "400px", position: "relative" }}>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                style={{ position: "absolute", top: "20px", right: "20px", background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}
+              >
+                <X size={20} />
+              </button>
+
+              <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "16px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <Lock size={20} style={{ color: "var(--color-danger)" }} />
+                Acceso a Resultados
+              </h2>
+              
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "20px", lineHeight: "1.5" }}>
+                Esta encuesta de traumas (Guía I) está protegida. Por favor ingresa la clave secreta para ver sus estadísticas y respuestas.
+              </p>
+
+              {passwordError && (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px", borderRadius: "var(--radius-sm)", backgroundColor: "var(--color-danger-bg)", color: "var(--color-danger)", fontSize: "13px", fontWeight: "500", marginBottom: "16px" }}>
+                  <AlertCircle size={16} />
+                  <span>{passwordError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleVerifyResultsClave} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="results_clave">Clave de Acceso</label>
+                  <input
+                    id="results_clave"
+                    type="password"
+                    required
+                    placeholder="Ingresa la clave secreta"
+                    className="form-input"
+                    value={enteredPassword}
+                    onChange={(e) => setEnteredPassword(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+                  <button type="button" onClick={() => setShowPasswordModal(false)} className="btn btn-secondary">
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={verifyingPassword} className="btn btn-primary">
+                    {verifyingPassword ? "Verificando..." : "Desbloquear y Ver"}
                   </button>
                 </div>
               </form>

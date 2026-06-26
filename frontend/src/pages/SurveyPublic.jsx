@@ -39,6 +39,7 @@ export default function SurveyPublic() {
   const [answers, setAnswers] = useState({});
   const [pageIndex, setPageIndex] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [candidateName, setCandidateName] = useState("");
 
   // Secret Key Validation state
   const [requiresClave, setRequiresClave] = useState(false);
@@ -136,11 +137,62 @@ export default function SurveyPublic() {
     });
   };
 
+  const checkTraumaStatus = (currentAnswers) => {
+    if (guide_type !== "GUIA_I") return { shouldTerminate: false, isCandidate: false };
+
+    // Section I (q1 to q6) keys
+    const s1Keys = ["q1", "q2", "q3", "q4", "q5", "q6"];
+    const allS1Answered = s1Keys.every(k => currentAnswers[k]);
+
+    if (allS1Answered) {
+      const anyS1Yes = s1Keys.some(k => currentAnswers[k] === "Sí");
+      if (!anyS1Yes) {
+        // Answered "No" to all q1-q6 -> Terminate immediately, NOT a candidate
+        return { shouldTerminate: true, isCandidate: false };
+      }
+    }
+
+    // Candidate thresholds: only if they answered "Sí" to any Section I question
+    const anyS1Yes = s1Keys.some(k => currentAnswers[k] === "Sí");
+    if (anyS1Yes) {
+      // Section II: q7-q8 (any "Sí")
+      const s2Yes = ["q7", "q8"].some(k => currentAnswers[k] === "Sí");
+
+      // Section III: q9-q15 (3 or more "Sí")
+      const s3YesCount = ["q9", "q10", "q11", "q12", "q13", "q14", "q15"].filter(
+        k => currentAnswers[k] === "Sí"
+      ).length;
+
+      // Section IV: q16-q20 (2 or more "Sí")
+      const s4YesCount = ["q16", "q17", "q18", "q19", "q20"].filter(
+        k => currentAnswers[k] === "Sí"
+      ).length;
+
+      if (s2Yes || s3YesCount >= 3 || s4YesCount >= 2) {
+        return { shouldTerminate: true, isCandidate: true };
+      }
+    }
+
+    return { shouldTerminate: false, isCandidate: false };
+  };
+
   const handleAnswerSelect = (questionId, value) => {
-    setAnswers({
+    const updatedAnswers = {
       ...answers,
       [`q${questionId}`]: value
-    });
+    };
+    setAnswers(updatedAnswers);
+
+    if (guide_type === "GUIA_I") {
+      const status = checkTraumaStatus(updatedAnswers);
+      if (status.shouldTerminate) {
+        if (status.isCandidate) {
+          setStep(3);
+        } else {
+          handleSubmitSurvey(updatedAnswers);
+        }
+      }
+    }
   };
 
   const handleNextPage = () => {
@@ -151,11 +203,24 @@ export default function SurveyPublic() {
       return;
     }
 
+    if (guide_type === "GUIA_I") {
+      const status = checkTraumaStatus(answers);
+      if (status.shouldTerminate) {
+        if (status.isCandidate) {
+          setStep(3);
+          return;
+        } else {
+          handleSubmitSurvey(answers);
+          return;
+        }
+      }
+    }
+
     if (pageIndex < totalPages - 1) {
       setPageIndex(pageIndex + 1);
       window.scrollTo(0, 0);
     } else {
-      handleSubmitSurvey();
+      handleSubmitSurvey(answers);
     }
   };
 
@@ -166,13 +231,12 @@ export default function SurveyPublic() {
     }
   };
 
-  const handleSubmitSurvey = async () => {
+  const handleSubmitSurvey = async (finalAnswers, finalDemographics) => {
     setSubmitting(true);
     try {
-      const qs = enteredClave ? `?clave=${encodeURIComponent(enteredClave)}` : "";
-      await api.post(`/api/survey/public/${linkHash}${qs}`, {
-        demographics,
-        answers
+      await api.post(`/api/survey/public/${linkHash}`, {
+        demographics: finalDemographics || demographics,
+        answers: finalAnswers || answers
       });
       setStep(2);
     } catch (err) {
@@ -470,6 +534,65 @@ export default function SurveyPublic() {
                 }}>
                   <ShieldCheck size={16} />
                   <span>Cumplimiento Oficial NOM-035</span>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: Candidate Name Collection (Trauma Survey Only) */}
+            {step === 3 && (
+              <div className="glass-card animate-slide-up" style={{ padding: "40px", maxWidth: "560px", margin: "40px auto 0" }}>
+                <div style={{ display: "flex", gap: "12px", alignItems: "center", color: "var(--color-warning)", marginBottom: "20px" }}>
+                  <AlertCircle size={28} />
+                  <h2 style={{ fontSize: "20px", fontWeight: "800", margin: 0 }}>Atención y Seguimiento</h2>
+                </div>
+                
+                <p style={{ color: "var(--text-primary)", fontSize: "14px", marginBottom: "16px", lineHeight: "1.6" }}>
+                  De acuerdo con tus respuestas, eres candidato a ser valorado por un especialista clínico. Tu salud y bienestar son de suma importancia para nosotros.
+                </p>
+                <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginBottom: "24px", lineHeight: "1.6" }}>
+                  Para dar el debido seguimiento a tu caso, te sugerimos proporcionar tu nombre completo en el siguiente campo.
+                  <br />
+                  <strong style={{ color: "var(--color-primary)" }}>Nota: Este dato es importante pero completamente opcional.</strong> Si prefieres mantenerte de forma anónima, puedes dejar el campo en blanco y enviar la encuesta.
+                </p>
+
+                <div className="form-group" style={{ marginBottom: "28px" }}>
+                  <label className="form-label" htmlFor="candidate_name">Nombre Completo (Opcional)</label>
+                  <input
+                    id="candidate_name"
+                    type="text"
+                    placeholder="Ingresa tu nombre completo o déjalo en blanco"
+                    className="form-input"
+                    value={candidateName}
+                    onChange={(e) => setCandidateName(e.target.value)}
+                  />
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px" }}>
+                  <button
+                    onClick={() => {
+                      setStep(1); // Go back to correct answers
+                    }}
+                    className="btn btn-secondary"
+                    style={{ padding: "12px 20px" }}
+                  >
+                    <ArrowLeft size={18} style={{ marginRight: "8px" }} />
+                    Corregir respuestas
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      const updatedDemographics = {
+                        ...demographics,
+                        nombre_candidato: candidateName.trim() || null
+                      };
+                      handleSubmitSurvey(answers, updatedDemographics);
+                    }}
+                    disabled={submitting}
+                    className="btn btn-primary"
+                    style={{ padding: "12px 24px" }}
+                  >
+                    {submitting ? "Enviando..." : "Enviar Encuesta"}
+                  </button>
                 </div>
               </div>
             )}

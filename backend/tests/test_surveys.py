@@ -153,25 +153,15 @@ def test_survey_public_authentication_and_submit(client, session):
     session.add(survey_sess)
     session.commit()
 
-    # 1. Fetch public details without secret key parameter
+    # 1. Fetch public details - should succeed directly without requiring password
     response = client.get("/api/survey/public/traumahash")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["requires_clave"] is True
-
-    # 2. Fetch public details with WRONG secret key
-    response = client.get("/api/survey/public/traumahash?clave=wrong")
-    assert response.status_code == 403
-    assert "incorrecta" in response.json()["detail"].lower()
-
-    # 3. Fetch public details with CORRECT secret key
-    response = client.get("/api/survey/public/traumahash?clave=topsecret")
     assert response.status_code == 200
     data = response.json()
     assert data["requires_clave"] is False
     assert data["company_name"] == "Test Company"
+    assert data["guide_type"] == "GUIA_I"
 
-    # 4. Submit survey response with WRONG key (should fail)
+    # 2. Submit survey response - should succeed directly
     response_payload = {
         "demographics": {
             "age_range": "26-35",
@@ -181,17 +171,45 @@ def test_survey_public_authentication_and_submit(client, session):
         },
         "answers": {f"q{i}": "No" for i in range(1, 21)}
     }
-    response = client.post("/api/survey/public/traumahash?clave=wrong", json=response_payload)
-    assert response.status_code == 403
-
-    # 5. Submit survey response with CORRECT key (should succeed)
-    response = client.post("/api/survey/public/traumahash?clave=topsecret", json=response_payload)
+    response = client.post("/api/survey/public/traumahash", json=response_payload)
     assert response.status_code == 201
     assert response.json()["message"] == "Encuesta registrada con éxito."
 
     # Verify response was saved and response_count of session is now 1
     session.refresh(survey_sess)
     assert survey_sess.response_count == 1
+
+    # 3. Global stats query should NOT return results from this protected session
+    response = client.get("/api/survey/stats")
+    assert response.status_code == 200
+    assert response.json()["total_responses"] == 0
+
+    # 4. Global responses query should NOT return results from this protected session
+    response = client.get("/api/survey/responses")
+    assert response.status_code == 200
+    assert len(response.json()["responses"]) == 0
+
+    # 5. Session-specific stats query without clave or with WRONG clave should be 403 Forbidden
+    response = client.get(f"/api/survey/stats?survey_session_id={survey_sess.id}")
+    assert response.status_code == 403
+    response = client.get(f"/api/survey/stats?survey_session_id={survey_sess.id}&clave=wrong")
+    assert response.status_code == 403
+
+    # 6. Session-specific stats query with CORRECT clave should be 200 OK
+    response = client.get(f"/api/survey/stats?survey_session_id={survey_sess.id}&clave=topsecret")
+    assert response.status_code == 200
+    assert response.json()["total_responses"] == 1
+
+    # 7. Session-specific responses query without clave or with WRONG clave should be 403 Forbidden
+    response = client.get(f"/api/survey/responses?survey_session_id={survey_sess.id}")
+    assert response.status_code == 403
+    response = client.get(f"/api/survey/responses?survey_session_id={survey_sess.id}&clave=wrong")
+    assert response.status_code == 403
+
+    # 8. Session-specific responses query with CORRECT clave should be 200 OK
+    response = client.get(f"/api/survey/responses?survey_session_id={survey_sess.id}&clave=topsecret")
+    assert response.status_code == 200
+    assert len(response.json()["responses"]) == 1
 
 def test_get_uploads_dir(monkeypatch):
     from backend.app.db.session import get_uploads_dir

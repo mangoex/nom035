@@ -1,5 +1,6 @@
 // frontend/src/pages/Dashboard.jsx
 import React, { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import { PrintableReport } from "../components/PrintableReport";
 import { 
@@ -58,6 +59,10 @@ const CustomTooltip = ({ active, payload }) => {
 };
 
 export default function Dashboard() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sessionId = searchParams.get("session_id");
+  const sessionKey = sessionId ? sessionStorage.getItem(`session_key_${sessionId}`) : null;
+
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState(null);
   const [stats, setStats] = useState(null);
@@ -65,6 +70,7 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [error, setError] = useState("");
+  const [isAccessDenied, setIsAccessDenied] = useState(false);
   const componentRef = useRef();
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
@@ -83,6 +89,8 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     setLoading(true);
+    setError("");
+    setIsAccessDenied(false);
     try {
       // Build query string
       const params = new URLSearchParams();
@@ -92,6 +100,13 @@ export default function Dashboard() {
       if (filters.position) params.append("position", filters.position);
       if (filters.start_date) params.append("start_date", filters.start_date);
       if (filters.end_date) params.append("end_date", filters.end_date);
+
+      if (sessionId) {
+        params.append("survey_session_id", sessionId);
+        if (sessionKey) {
+          params.append("clave", sessionKey);
+        }
+      }
 
       const qs = params.toString();
       const query = qs ? `?${qs}` : "";
@@ -110,7 +125,11 @@ export default function Dashboard() {
       setSuggestions(suggRes.data.suggestions || []);
     } catch (err) {
       console.error(err);
-      setError("Error al cargar la información del servidor.");
+      if (err.response?.status === 403) {
+        setIsAccessDenied(true);
+      } else {
+        setError("Error al cargar la información del servidor.");
+      }
     } finally {
       setLoading(false);
     }
@@ -118,7 +137,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-  }, [filters]);
+  }, [filters, sessionId]);
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
@@ -158,6 +177,56 @@ export default function Dashboard() {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--bg-primary)" }}>
         <p style={{ color: "var(--text-secondary)", fontWeight: "500" }}>Cargando panel de control...</p>
+      </div>
+    );
+  }
+
+  if (isAccessDenied) {
+    return (
+      <div className="app-container">
+        <Sidebar company={company} />
+        <main className="main-content" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "80vh" }}>
+          <div className="glass-card animate-slide-up" style={{ maxWidth: "480px", width: "100%", padding: "40px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
+            <div style={{
+              width: "64px",
+              height: "64px",
+              borderRadius: "var(--radius-md)",
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}>
+              <ShieldAlert size={32} style={{ color: "var(--color-danger)" }} />
+            </div>
+            
+            <h2 style={{ fontSize: "22px", fontWeight: "800", color: "var(--text-primary)" }}>Acceso Restringido</h2>
+            
+            <p style={{ color: "var(--text-secondary)", fontSize: "14px", lineHeight: "1.6" }}>
+              Esta encuesta de traumas está protegida por una clave secreta y no tienes los permisos necesarios para ver sus resultados.
+            </p>
+            
+            <div style={{ display: "flex", gap: "12px", width: "100%" }}>
+              <button 
+                onClick={() => {
+                  setSearchParams({});
+                }} 
+                className="btn btn-secondary" 
+                style={{ flex: 1, padding: "12px" }}
+              >
+                Ver Datos Globales
+              </button>
+              <button 
+                onClick={() => {
+                  window.location.href = "/intake";
+                }} 
+                className="btn btn-primary" 
+                style={{ flex: 1, padding: "12px" }}
+              >
+                Ir a Captura
+              </button>
+            </div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -213,6 +282,35 @@ export default function Dashboard() {
             <ThemeToggle />
           </div>
         </header>
+
+        {sessionId && (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "12px 20px",
+            backgroundColor: "rgba(99, 102, 241, 0.1)",
+            border: "1px solid rgba(99, 102, 241, 0.2)",
+            borderRadius: "var(--radius-md)",
+            marginBottom: "24px"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--color-primary)", fontSize: "14px", fontWeight: "500" }}>
+              <Activity size={18} />
+              <span>
+                Filtrando resultados por la sesión de encuesta activa (ID: {sessionId}). Solo se muestran datos vinculados a este enlace.
+              </span>
+            </div>
+            <button
+              onClick={() => {
+                setSearchParams({});
+              }}
+              className="btn btn-secondary"
+              style={{ padding: "6px 12px", fontSize: "12px" }}
+            >
+              Ver todos los resultados (Quitar Filtro)
+            </button>
+          </div>
+        )}
 
         {error && (
           <div style={{ padding: "12px 16px", borderRadius: "var(--radius-sm)", backgroundColor: "var(--color-danger-bg)", color: "var(--color-danger)", display: "flex", gap: "10px", alignItems: "center", fontSize: "14px", marginBottom: "20px" }}>

@@ -8,6 +8,7 @@ class DemographicsSchema(BaseModel):
     gender: str = Field(description="e.g. Masculino, Femenino, Otro")
     department: str = Field(description="e.g. Administración, Ventas, Operaciones")
     position: str = Field(description="e.g. Operativo, Supervisor, Directivo")
+    nombre_candidato: Optional[str] = Field(default=None, description="Nombre del candidato (opcional, para Guía I)")
 
 class SurveySessionCreate(BaseModel):
     guide_type: str

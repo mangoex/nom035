@@ -281,7 +281,6 @@ def delete_all_responses(
 @router.get("/public/{link_hash}")
 def get_public_session_details(
     link_hash: str,
-    clave: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     session = db.query(SurveySession).filter(
@@ -297,21 +296,6 @@ def get_public_session_details(
         
     company = db.query(Company).filter(Company.id == session.company_id).first()
 
-    # Verify secret key if present
-    if session.clave_secreta:
-        if not clave:
-            return {
-                "company_name": company.name,
-                "guide_type": session.guide_type,
-                "session_id": session.id,
-                "requires_clave": True
-            }
-        if clave != session.clave_secreta:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Clave secreta incorrecta."
-            )
-            
     return {
         "company_name": company.name,
         "guide_type": session.guide_type,
@@ -323,7 +307,6 @@ def get_public_session_details(
 def submit_public_response(
     link_hash: str,
     response_in: SurveyResponseCreate,
-    clave: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     session = db.query(SurveySession).filter(
@@ -335,13 +318,6 @@ def submit_public_response(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Liga de encuesta no válida o expirada."
-        )
-
-    # Validate secret key if session requires it
-    if session.clave_secreta and clave != session.clave_secreta:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Clave secreta incorrecta o no proporcionada."
         )
 
     company_id = session.company_id
@@ -366,9 +342,6 @@ def submit_public_response(
             db.add(referral_task)
     else:
         results = calculate_survey_scores(guide_type, response_in.answers)
-        
-        # Removed automatic action plan task generation to prevent dummy duplicates.
-        # Suggestions are now exclusively shown in the frontend.
 
     # Save response
     response_model = SurveyResponse(
@@ -387,12 +360,57 @@ from typing import Optional
 # --- DASHBOARD & STATISTICS ---
 
 from datetime import datetime
-
 from datetime import time
 
-def get_filtered_responses_query(db: Session, company_id: int, age_range, gender, department, position, start_date=None, end_date=None):
-    query = db.query(SurveyResponse).filter(SurveyResponse.company_id == company_id)
-    
+def get_filtered_responses_query(
+    db: Session,
+    company_id: int,
+    age_range,
+    gender,
+    department,
+    position,
+    start_date=None,
+    end_date=None,
+    survey_session_id=None,
+    clave=None
+):
+    if survey_session_id:
+        session = db.query(SurveySession).filter(
+            SurveySession.id == survey_session_id,
+            SurveySession.company_id == company_id
+        ).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="Sesión de encuesta no encontrada.")
+            
+        if session.guide_type == "GUIA_I" and session.clave_secreta:
+            if not clave or clave != session.clave_secreta:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Esta encuesta de traumas está protegida. Ingresa la clave secreta para ver sus resultados."
+                )
+        query = db.query(SurveyResponse).filter(
+            SurveyResponse.company_id == company_id,
+            SurveyResponse.survey_session_id == survey_session_id
+        )
+    else:
+        # Global query: Exclude any responses that belong to a session with a secret key
+        locked_session_ids = db.query(SurveySession.id).filter(
+            SurveySession.company_id == company_id,
+            SurveySession.guide_type == "GUIA_I",
+            SurveySession.clave_secreta != None
+        ).all()
+        locked_ids = [s[0] for s in locked_session_ids]
+        
+        query = db.query(SurveyResponse).filter(SurveyResponse.company_id == company_id)
+        if locked_ids:
+            from sqlalchemy import or_
+            query = query.filter(
+                or_(
+                    SurveyResponse.survey_session_id.is_(None),
+                    ~SurveyResponse.survey_session_id.in_(locked_ids)
+                )
+            )
+
     if age_range:
         query = query.filter(SurveyResponse.demographics["age_range"].as_string() == age_range)
     if gender:
@@ -455,27 +473,48 @@ def get_survey_statistics(
     position: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    survey_session_id: Optional[int] = None,
+    clave: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
     # Fetch only filtered responses from DB
     query = get_filtered_responses_query(
-        db, current_user.company_id, age_range, gender, department, position, start_date, end_date
+        db, current_user.company_id, age_range, gender, department, position, start_date, end_date, survey_session_id, clave
     )
     responses = query.all()
     
-    if not responses:
-        # Fetch only demographics column for available filters to avoid overhead
-        all_demographics = db.query(SurveyResponse.demographics).filter(
-            SurveyResponse.company_id == current_user.company_id
+    # Fetch only demographics column for available filters to avoid overhead
+    demographics_query = db.query(SurveyResponse.demographics).filter(SurveyResponse.company_id == current_user.company_id)
+    if survey_session_id:
+        demographics_query = demographics_query.filter(SurveyResponse.survey_session_id == survey_session_id)
+    else:
+        # Exclude locked sessions
+        locked_session_ids = db.query(SurveySession.id).filter(
+            SurveySession.company_id == current_user.company_id,
+            SurveySession.guide_type == "GUIA_I",
+            SurveySession.clave_secreta != None
         ).all()
-        
-        available_filters = {
-            "age_ranges": sorted(list(set(d[0].get("age_range", "") for d in all_demographics if d[0] and d[0].get("age_range")))),
-            "genders": sorted(list(set(d[0].get("gender", "") for d in all_demographics if d[0] and d[0].get("gender")))),
-            "departments": sorted(list(set(d[0].get("department", "") for d in all_demographics if d[0] and d[0].get("department")))),
-            "positions": sorted(list(set(d[0].get("position", "") for d in all_demographics if d[0] and d[0].get("position"))))
-        }
+        locked_ids = [s[0] for s in locked_session_ids]
+        if locked_ids:
+            from sqlalchemy import or_
+            demographics_query = demographics_query.filter(
+                or_(
+                    SurveyResponse.survey_session_id.is_(None),
+                    ~SurveyResponse.survey_session_id.in_(locked_ids)
+                )
+            )
+            
+    all_demographics = demographics_query.all()
+    
+    available_filters = {
+        "age_ranges": sorted(list(set(d[0].get("age_range", "") for d in all_demographics if d[0] and d[0].get("age_range")))),
+        "genders": sorted(list(set(d[0].get("gender", "") for d in all_demographics if d[0] and d[0].get("gender")))),
+        "departments": sorted(list(set(d[0].get("department", "") for d in all_demographics if d[0] and d[0].get("department")))),
+        "positions": sorted(list(set(d[0].get("position", "") for d in all_demographics if d[0] and d[0].get("position"))))
+    }
+    
+    if not responses:
         return {
             "total_responses": 0,
             "requires_clinical_referral_count": 0,
@@ -572,18 +611,6 @@ def get_survey_statistics(
     global_score_average = round(total_score / total_scored_responses, 2) if total_scored_responses > 0 else 0
     global_score_risk = get_risk_level(global_score_average, thresholds["final"])
     
-    # Fetch only demographics column for available filters to avoid overhead
-    all_demographics = db.query(SurveyResponse.demographics).filter(
-        SurveyResponse.company_id == current_user.company_id
-    ).all()
-    
-    available_filters = {
-        "age_ranges": sorted(list(set(d[0].get("age_range", "") for d in all_demographics if d[0] and d[0].get("age_range")))),
-        "genders": sorted(list(set(d[0].get("gender", "") for d in all_demographics if d[0] and d[0].get("gender")))),
-        "departments": sorted(list(set(d[0].get("department", "") for d in all_demographics if d[0] and d[0].get("department")))),
-        "positions": sorted(list(set(d[0].get("position", "") for d in all_demographics if d[0] and d[0].get("position"))))
-    }
-    
     return {
         "total_responses": total,
         "requires_clinical_referral_count": clinical_referrals,
@@ -607,11 +634,13 @@ def get_survey_responses(
     position: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
+    survey_session_id: Optional[int] = None,
+    clave: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
     query = get_filtered_responses_query(
-        db, current_user.company_id, age_range, gender, department, position, start_date, end_date
+        db, current_user.company_id, age_range, gender, department, position, start_date, end_date, survey_session_id, clave
     )
     # Defer the loading of the massive raw answers column to optimize dashboard load speed
     query = query.options(defer(SurveyResponse.answers))
