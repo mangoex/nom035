@@ -104,6 +104,7 @@ export default function Sidebar({ company }) {
     { path: "/action-plan", label: "Plan de Acción", icon: <Kanban size={20} /> },
     { path: "/trainings", label: "Capacitaciones", icon: <BookOpen size={20} /> },
     { path: "/documents", label: "Gestión Documental", icon: <FileText size={20} /> },
+    { path: "/settings", label: "Cuenta", icon: <Settings size={20} /> },
   ];
 
   return (
@@ -249,30 +250,6 @@ export default function Sidebar({ company }) {
               <Settings size={16} />
             </button>
           </div>
-        )}
-        {!isSuperadmin && !isConsultant && (
-          <Link
-            to="/settings"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              padding: "12px 16px",
-              width: "100%",
-              borderRadius: "var(--radius-sm)",
-              color: "#cbd5e1",
-              backgroundColor: "transparent",
-              textDecoration: "none",
-              fontSize: "14px",
-              fontWeight: "500",
-              transition: "all 0.2s ease"
-            }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)"}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
-          >
-            <Settings size={20} />
-            Configuración
-          </Link>
         )}
         
         <button
