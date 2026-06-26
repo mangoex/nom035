@@ -1,5 +1,8 @@
 # backend/app/api/endpoints/superadmin.py
-from fastapi import APIRouter, Depends, HTTPException, status
+import os
+import shutil
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from backend.app.db.session import get_db
@@ -188,3 +191,42 @@ def delete_consultant(
     db.delete(user)
     db.commit()
     return {"message": "Consultor eliminado exitosamente."}
+
+@router.post("/consultants/{user_id}/logo")
+def upload_consultant_logo(
+    user_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    user = db.query(User).filter(User.id == user_id, User.role == "consultor").first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Consultor no encontrado.")
+
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+        raise HTTPException(status_code=400, detail="El archivo debe ser PNG o JPEG.")
+
+    from backend.app.db.session import get_uploads_dir
+    uploads_dir = os.path.join(get_uploads_dir(), "user_logos")
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    ext = file.filename.split(".")[-1]
+    filename = f"user_{user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(uploads_dir, filename)
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    if user.logo_url:
+        old_filename = user.logo_url.split("/")[-1]
+        old_filepath = os.path.join(uploads_dir, old_filename)
+        if os.path.exists(old_filepath):
+            try:
+                os.remove(old_filepath)
+            except Exception:
+                pass
+
+    user.logo_url = f"/uploads/user_logos/{filename}"
+    db.commit()
+    db.refresh(user)
+    return {"logo_url": user.logo_url}

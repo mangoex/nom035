@@ -52,6 +52,12 @@ try:
         except Exception:
             pass
 
+        # Add logo_url to users column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN logo_url VARCHAR"))
+        except Exception:
+            pass
+
         # Add columns to survey_sessions if they don't exist
         try:
             conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN recopilador VARCHAR"))

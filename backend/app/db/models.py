@@ -36,6 +36,7 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     cedula_profesional = Column(String, nullable=True)
     creditos = Column(Integer, default=0, nullable=True)
+    logo_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships

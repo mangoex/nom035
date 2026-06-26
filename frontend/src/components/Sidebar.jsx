@@ -40,6 +40,7 @@ export default function Sidebar({ company }) {
   const [profileEmail, setProfileEmail] = useState("");
   const [profilePassword, setProfilePassword] = useState("");
   const [profileCedula, setProfileCedula] = useState("");
+  const [profileLogo, setProfileLogo] = useState(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [updatingProfile, setUpdatingProfile] = useState(false);
 
@@ -48,6 +49,7 @@ export default function Sidebar({ company }) {
     setProfileEmail(user?.email || "");
     setProfilePassword("");
     setProfileCedula(user?.cedula_profesional || "");
+    setProfileLogo(null);
     setIsProfileModalOpen(true);
   };
 
@@ -55,12 +57,22 @@ export default function Sidebar({ company }) {
     e.preventDefault();
     setUpdatingProfile(true);
     try {
-      const res = await api.put("/api/auth/me", {
+      let res = await api.put("/api/auth/me", {
         name: profileName,
         email: profileEmail,
         password: profilePassword || null,
         cedula_profesional: profileCedula || null
       });
+
+      if (profileLogo) {
+        const form = new FormData();
+        form.append("file", profileLogo);
+        const logoRes = await api.post("/api/auth/me/logo", form, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        res.data.logo_url = logoRes.data.logo_url;
+      }
+
       localStorage.setItem("user", JSON.stringify(res.data));
       alert("Perfil actualizado correctamente.");
       setIsProfileModalOpen(false);
@@ -104,7 +116,15 @@ export default function Sidebar({ company }) {
           </>
         ) : isConsultant ? (
           <>
-            <Building size={28} style={{ color: "var(--color-primary)" }} />
+            {user?.logo_url ? (
+              <img 
+                src={`${api.defaults.baseURL || ""}${user.logo_url}`} 
+                alt="Logo Consultor" 
+                style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "4px", backgroundColor: "#fff", padding: "2px" }}
+              />
+            ) : (
+              <Building size={28} style={{ color: "var(--color-primary)" }} />
+            )}
             <div>
               <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff" }}>
                 NOM-035 Consultor
@@ -342,6 +362,18 @@ export default function Sidebar({ company }) {
                   onChange={(e) => setProfilePassword(e.target.value)}
                 />
               </div>
+              {user?.role === "consultor" && (
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: "6px" }}>Logotipo (Opcional)</label>
+                  <input
+                    type="file"
+                    accept=".png, .jpg, .jpeg"
+                    className="form-input"
+                    style={{ padding: "8px" }}
+                    onChange={(e) => setProfileLogo(e.target.files[0])}
+                  />
+                </div>
+              )}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "8px" }}>
                 <button
                   type="button"

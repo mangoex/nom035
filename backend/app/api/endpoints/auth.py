@@ -1,5 +1,8 @@
 # backend/app/api/endpoints/auth.py
-from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+import os
+import shutil
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company
@@ -140,4 +143,38 @@ def update_profile(
     db.commit()
     db.refresh(current_user)
     return current_user
+
+@router.post("/me/logo")
+def upload_user_logo(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+        raise HTTPException(status_code=400, detail="El archivo debe ser PNG o JPEG.")
+
+    from backend.app.db.session import get_uploads_dir
+    uploads_dir = os.path.join(get_uploads_dir(), "user_logos")
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    ext = file.filename.split(".")[-1]
+    filename = f"user_{current_user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(uploads_dir, filename)
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    if current_user.logo_url:
+        old_filename = current_user.logo_url.split("/")[-1]
+        old_filepath = os.path.join(uploads_dir, old_filename)
+        if os.path.exists(old_filepath):
+            try:
+                os.remove(old_filepath)
+            except Exception:
+                pass
+
+    current_user.logo_url = f"/uploads/user_logos/{filename}"
+    db.commit()
+    db.refresh(current_user)
+    return {"logo_url": current_user.logo_url}
 

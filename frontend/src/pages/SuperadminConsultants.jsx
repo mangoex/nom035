@@ -21,6 +21,7 @@ export default function SuperadminConsultants() {
     cedula_profesional: "",
     creditos: 0
   });
+  const [profileLogo, setProfileLogo] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [modalError, setModalError] = useState("");
 
@@ -51,6 +52,7 @@ export default function SuperadminConsultants() {
       cedula_profesional: "",
       creditos: 0
     });
+    setProfileLogo(null);
     setModalError("");
     setShowModal(true);
   };
@@ -64,6 +66,7 @@ export default function SuperadminConsultants() {
       cedula_profesional: consultant.cedula_profesional || "",
       creditos: consultant.creditos || 0
     });
+    setProfileLogo(null);
     setModalError("");
     setShowModal(true);
   };
@@ -94,6 +97,8 @@ export default function SuperadminConsultants() {
     }
 
     try {
+      let savedConsultantId = null;
+
       if (editingCompanyWrapper()) {
         // Edit flow
         const dataToSend = { ...formData };
@@ -101,12 +106,25 @@ export default function SuperadminConsultants() {
           delete dataToSend.password; // Do not send empty password
         }
         const res = await api.put(`/api/superadmin/consultants/${editingConsultant.id}`, dataToSend);
+        savedConsultantId = res.data.id;
         setConsultants(consultants.map(c => c.id === editingConsultant.id ? res.data : c));
       } else {
         // Create flow
         const res = await api.post("/api/superadmin/consultants", formData);
+        savedConsultantId = res.data.id;
         setConsultants([res.data, ...consultants]);
       }
+
+      // Upload logo if selected
+      if (profileLogo && savedConsultantId) {
+        const form = new FormData();
+        form.append("file", profileLogo);
+        await api.post(`/api/superadmin/consultants/${savedConsultantId}/logo`, form, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        fetchConsultants(); // Refetch to get the updated logo URL
+      }
+
       setShowModal(false);
     } catch (err) {
       console.error(err);
@@ -348,6 +366,17 @@ export default function SuperadminConsultants() {
                   <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
                     * Los créditos permiten al consultor procesar encuestas de clientes.
                   </span>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: "6px" }}>Logotipo (Opcional)</label>
+                  <input
+                    type="file"
+                    accept=".png, .jpg, .jpeg"
+                    className="form-input"
+                    style={{ padding: "8px" }}
+                    onChange={(e) => setProfileLogo(e.target.files[0])}
+                  />
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>

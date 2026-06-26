@@ -24,6 +24,7 @@ class ConsultantOut(BaseModel):
     role: str
     cedula_profesional: Optional[str] = None
     creditos: Optional[int] = 0
+    logo_url: Optional[str] = None
     created_at: datetime.datetime
 
     class Config:
