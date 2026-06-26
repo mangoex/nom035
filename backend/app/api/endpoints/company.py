@@ -61,8 +61,8 @@ def upload_logo(
         raise HTTPException(status_code=400, detail="El archivo debe ser PNG o JPEG.")
 
     # Create uploads directory if not exists
-    backend_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    uploads_dir = os.path.join(backend_root, "uploads", "logos")
+    from backend.app.db.session import get_uploads_dir
+    uploads_dir = os.path.join(get_uploads_dir(), "logos")
     os.makedirs(uploads_dir, exist_ok=True)
 
     # Generate unique filename

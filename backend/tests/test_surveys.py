@@ -192,3 +192,20 @@ def test_survey_public_authentication_and_submit(client, session):
     # Verify response was saved and response_count of session is now 1
     session.refresh(survey_sess)
     assert survey_sess.response_count == 1
+
+def test_get_uploads_dir(monkeypatch):
+    from backend.app.db.session import get_uploads_dir
+    
+    # 1. Environment variable override
+    monkeypatch.setenv("UPLOADS_DIR", "/tmp/custom_uploads")
+    assert get_uploads_dir() == "/tmp/custom_uploads"
+    monkeypatch.delenv("UPLOADS_DIR", raising=False)
+
+    # 2. SQLite Database URL inside a container path (like /app/data)
+    monkeypatch.setenv("DATABASE_URL", "sqlite:////app/data/nom035.db")
+    monkeypatch.setattr("os.access", lambda path, mode: True)
+    
+    # Under test execution, get_uploads_dir should resolve database URL path
+    # and put uploads inside the persistent /app/data/uploads folder.
+    assert get_uploads_dir() == "/app/data/uploads"
+

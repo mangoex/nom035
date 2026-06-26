@@ -120,7 +120,8 @@ app.include_router(action_plan.router, prefix="/api/action_plan", tags=["Action 
 app.include_router(superadmin.router, prefix="/api/superadmin", tags=["Superadmin"])
 
 backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # points to backend
-uploads_dir = os.path.join(backend_root, "uploads")
+from backend.app.db.session import get_uploads_dir
+uploads_dir = get_uploads_dir()
 os.makedirs(uploads_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
