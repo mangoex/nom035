@@ -6,7 +6,8 @@ from typing import List
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company, SurveySession, SurveyResponse
 from backend.app.schemas.company import CompanyOut, CompanyCreate, CompanyUpdate
-from backend.app.core.auth import get_current_consultant
+from backend.app.schemas.auth import ConsultantUserCreate, ConsultantUserUpdate
+from backend.app.core.auth import get_current_consultant, get_password_hash
 
 router = APIRouter()
 
@@ -140,3 +141,171 @@ def delete_consultant_company(
     db.delete(company)
     db.commit()
     return {"message": "Empresa eliminada exitosamente."}
+
+@router.get("/users")
+def get_consultant_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant)
+):
+    # Get all companies of this consultant
+    companies = db.query(Company).filter(Company.consultant_id == current_user.id).all()
+    company_ids = [c.id for c in companies]
+    
+    if not company_ids:
+        return []
+        
+    users = db.query(User).filter(User.company_id.in_(company_ids)).order_by(User.created_at.desc()).all()
+    
+    # Map users to include company name
+    result = []
+    for u in users:
+        comp = next((c for c in companies if c.id == u.company_id), None)
+        result.append({
+            "id": u.id,
+            "name": u.name,
+            "email": u.email,
+            "role": u.role,
+            "company_id": u.company_id,
+            "company_name": comp.name if comp else None,
+            "created_at": u.created_at
+        })
+    return result
+
+@router.post("/users", status_code=status.HTTP_201_CREATED)
+def create_consultant_user(
+    user_in: ConsultantUserCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant)
+):
+    # Verify company belongs to this consultant
+    company = db.query(Company).filter(
+        Company.id == user_in.company_id,
+        Company.consultant_id == current_user.id
+    ).first()
+    if not company:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="La empresa seleccionada no existe o no pertenece a su consultoría."
+        )
+        
+    # Check if email is already taken
+    existing = db.query(User).filter(User.email == user_in.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo electrónico ya está registrado por otro usuario."
+        )
+        
+    hashed_pwd = get_password_hash(user_in.password)
+    new_user = User(
+        name=user_in.name,
+        email=user_in.email,
+        password_hash=hashed_pwd,
+        role="company_admin",
+        company_id=user_in.company_id
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    
+    return {
+        "id": new_user.id,
+        "name": new_user.name,
+        "email": new_user.email,
+        "role": new_user.role,
+        "company_id": new_user.company_id,
+        "company_name": company.name,
+        "created_at": new_user.created_at
+    }
+
+@router.put("/users/{user_id}")
+def update_consultant_user(
+    user_id: int,
+    user_in: ConsultantUserUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant)
+):
+    # Verify target user belongs to a company registered by this consultant
+    companies = db.query(Company).filter(Company.consultant_id == current_user.id).all()
+    company_ids = [c.id for c in companies]
+    
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.company_id.in_(company_ids)
+    ).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado o no pertenece a su consultoría."
+        )
+        
+    if user_in.company_id is not None:
+        # Verify the new company also belongs to this consultant
+        new_company = db.query(Company).filter(
+            Company.id == user_in.company_id,
+            Company.consultant_id == current_user.id
+        ).first()
+        if not new_company:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="La nueva empresa seleccionada no pertenece a su consultoría."
+            )
+        user.company_id = user_in.company_id
+        
+    if user_in.email is not None:
+        # Check if email is already taken by another user
+        existing = db.query(User).filter(
+            User.email == user_in.email,
+            User.id != user_id
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El correo electrónico ya está registrado por otro usuario."
+            )
+        user.email = user_in.email
+        
+    if user_in.name is not None:
+        user.name = user_in.name
+        
+    if user_in.password is not None and user_in.password.strip() != "":
+        user.password_hash = get_password_hash(user_in.password)
+        
+    db.commit()
+    db.refresh(user)
+    
+    comp = db.query(Company).filter(Company.id == user.company_id).first()
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "company_id": user.company_id,
+        "company_name": comp.name if comp else None,
+        "created_at": user.created_at
+    }
+
+@router.delete("/users/{user_id}")
+def delete_consultant_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant)
+):
+    # Verify user belongs to a company registered by this consultant
+    companies = db.query(Company).filter(Company.consultant_id == current_user.id).all()
+    company_ids = [c.id for c in companies]
+    
+    user = db.query(User).filter(
+        User.id == user_id,
+        User.company_id.in_(company_ids)
+    ).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Usuario no encontrado o no pertenece a su consultoría."
+        )
+        
+    db.delete(user)
+    db.commit()
+    return {"message": "Usuario eliminado exitosamente."}
+

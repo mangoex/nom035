@@ -33,3 +33,22 @@ class TokenOut(BaseModel):
     access_token: str
     token_type: str
     user: UserOut
+
+class ConsultantUserCreate(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+    company_id: int
+
+class ConsultantUserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    company_id: Optional[int] = None
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    cedula_profesional: Optional[str] = None
+

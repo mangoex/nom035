@@ -13,6 +13,7 @@ import SuperadminCompanies from "./pages/SuperadminCompanies";
 import SuperadminConsultants from "./pages/SuperadminConsultants";
 import ConsultantDashboard from "./pages/ConsultantDashboard";
 import ConsultantCompanies from "./pages/ConsultantCompanies";
+import ConsultantUsers from "./pages/ConsultantUsers";
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -129,6 +130,14 @@ export default function App() {
           element={
             <ConsultantRoute>
               <ConsultantCompanies />
+            </ConsultantRoute>
+          } 
+        />
+        <Route 
+          path="/consultant/users" 
+          element={
+            <ConsultantRoute>
+              <ConsultantUsers />
             </ConsultantRoute>
           } 
         />

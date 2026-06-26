@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy.orm import Session
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company
-from backend.app.schemas.auth import UserRegister, UserLogin, UserOut
+from backend.app.schemas.auth import UserRegister, UserLogin, UserOut, ProfileUpdate
 from backend.app.core.auth import (
     get_password_hash,
     verify_password,
@@ -108,3 +108,36 @@ def logout(response: Response):
 @router.get("/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.put("/me", response_model=UserOut)
+def update_profile(
+    profile_in: ProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if profile_in.email is not None:
+        # Check if email is already taken by another user
+        existing = db.query(User).filter(
+            User.email == profile_in.email,
+            User.id != current_user.id
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El correo electrónico ya está registrado por otro usuario."
+            )
+        current_user.email = profile_in.email
+
+    if profile_in.name is not None:
+        current_user.name = profile_in.name
+
+    if profile_in.password is not None and profile_in.password.strip() != "":
+        current_user.password_hash = get_password_hash(profile_in.password)
+
+    if profile_in.cedula_profesional is not None:
+        current_user.cedula_profesional = profile_in.cedula_profesional
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
