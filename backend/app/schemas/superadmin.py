@@ -1,7 +1,12 @@
 # backend/app/schemas/superadmin.py
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 import datetime
+
+class TrainingItem(BaseModel):
+    codigo: str
+    nombre: str
+    horas: int
 
 class ConsultantCreate(BaseModel):
     name: str
@@ -9,6 +14,7 @@ class ConsultantCreate(BaseModel):
     password: str
     cedula_profesional: Optional[str] = None
     creditos: Optional[int] = 0
+    capacitaciones: Optional[List[TrainingItem]] = []
 
 class ConsultantUpdate(BaseModel):
     name: Optional[str] = None
@@ -16,6 +22,7 @@ class ConsultantUpdate(BaseModel):
     password: Optional[str] = None
     cedula_profesional: Optional[str] = None
     creditos: Optional[int] = None
+    capacitaciones: Optional[List[TrainingItem]] = None
 
 class ConsultantOut(BaseModel):
     id: int
@@ -25,6 +32,7 @@ class ConsultantOut(BaseModel):
     cedula_profesional: Optional[str] = None
     creditos: Optional[int] = 0
     logo_url: Optional[str] = None
+    capacitaciones: Optional[List[TrainingItem]] = []
     created_at: datetime.datetime
 
     class Config:

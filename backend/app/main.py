@@ -58,6 +58,12 @@ try:
         except Exception:
             pass
 
+        # Add capacitaciones to users column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN capacitaciones JSON"))
+        except Exception:
+            pass
+
         # Add address to companies column if it doesn't exist
         try:
             conn.execute(text("ALTER TABLE companies ADD COLUMN address VARCHAR"))

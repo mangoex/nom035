@@ -140,6 +140,7 @@ def create_consultant(
         role="consultor",
         cedula_profesional=consultant_in.cedula_profesional,
         creditos=consultant_in.creditos,
+        capacitaciones=[t.dict() for t in consultant_in.capacitaciones] if consultant_in.capacitaciones else [],
         company_id=None
     )
     db.add(user)
@@ -179,6 +180,8 @@ def update_consultant(
         user.cedula_profesional = consultant_in.cedula_profesional
     if consultant_in.creditos is not None:
         user.creditos = consultant_in.creditos
+    if consultant_in.capacitaciones is not None:
+        user.capacitaciones = [t.dict() for t in consultant_in.capacitaciones]
 
     db.commit()
     db.refresh(user)

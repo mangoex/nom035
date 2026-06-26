@@ -40,6 +40,7 @@ class User(Base):
     cedula_profesional = Column(String, nullable=True)
     creditos = Column(Integer, default=0, nullable=True)
     logo_url = Column(String, nullable=True)
+    capacitaciones = Column(JSON, nullable=True) # Array of {codigo, nombre, horas}
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships

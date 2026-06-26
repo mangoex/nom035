@@ -19,7 +19,8 @@ export default function SuperadminConsultants() {
     email: "",
     password: "",
     cedula_profesional: "",
-    creditos: 0
+    creditos: 0,
+    capacitaciones: []
   });
   const [profileLogo, setProfileLogo] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -50,7 +51,8 @@ export default function SuperadminConsultants() {
       email: "",
       password: "",
       cedula_profesional: "",
-      creditos: 0
+      creditos: 0,
+      capacitaciones: []
     });
     setProfileLogo(null);
     setModalError("");
@@ -64,7 +66,8 @@ export default function SuperadminConsultants() {
       email: consultant.email,
       password: "", // Keep blank unless changing
       cedula_profesional: consultant.cedula_profesional || "",
-      creditos: consultant.creditos || 0
+      creditos: consultant.creditos || 0,
+      capacitaciones: consultant.capacitaciones || []
     });
     setProfileLogo(null);
     setModalError("");
@@ -82,6 +85,24 @@ export default function SuperadminConsultants() {
       console.error(err);
       alert("Error al intentar eliminar el consultor.");
     }
+  };
+
+  const handleAddCapacitacion = () => {
+    setFormData({
+      ...formData,
+      capacitaciones: [...formData.capacitaciones, { codigo: "", nombre: "", horas: 0 }]
+    });
+  };
+
+  const handleUpdateCapacitacion = (index, field, value) => {
+    const newCap = [...formData.capacitaciones];
+    newCap[index][field] = value;
+    setFormData({ ...formData, capacitaciones: newCap });
+  };
+
+  const handleRemoveCapacitacion = (index) => {
+    const newCap = formData.capacitaciones.filter((_, i) => i !== index);
+    setFormData({ ...formData, capacitaciones: newCap });
   };
 
   const handleFormSubmit = async (e) => {
@@ -277,7 +298,7 @@ export default function SuperadminConsultants() {
             zIndex: 1000,
             padding: "20px"
           }}>
-            <div className="glass-card animate-slide-up" style={{ width: "100%", maxWidth: "480px", position: "relative" }}>
+            <div className="glass-card animate-slide-up" style={{ width: "100%", maxWidth: "600px", position: "relative", maxHeight: "90vh", overflowY: "auto" }}>
               <button
                 onClick={() => setShowModal(false)}
                 style={{ position: "absolute", top: "20px", right: "20px", background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}
@@ -377,6 +398,65 @@ export default function SuperadminConsultants() {
                     style={{ padding: "8px" }}
                     onChange={(e) => setProfileLogo(e.target.files[0])}
                   />
+                </div>
+
+                <div className="form-group" style={{ marginTop: "10px", padding: "16px", backgroundColor: "rgba(0,0,0,0.02)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <label className="form-label" style={{ margin: 0 }}>Capacitaciones que puede impartir</label>
+                    <button type="button" onClick={handleAddCapacitacion} className="btn btn-secondary" style={{ padding: "4px 8px", fontSize: "12px" }}>
+                      <Plus size={14} /> Agregar Capacitación
+                    </button>
+                  </div>
+                  
+                  {formData.capacitaciones.length === 0 ? (
+                    <p style={{ fontSize: "13px", color: "var(--text-muted)", textAlign: "center", fontStyle: "italic" }}>
+                      No se han agregado capacitaciones.
+                    </p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {formData.capacitaciones.map((cap, i) => (
+                        <div key={i} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="Código" 
+                            value={cap.codigo}
+                            onChange={(e) => handleUpdateCapacitacion(i, 'codigo', e.target.value)}
+                            style={{ flex: 1, padding: "6px 10px", fontSize: "13px" }}
+                            required
+                          />
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="Nombre de la capacitación" 
+                            value={cap.nombre}
+                            onChange={(e) => handleUpdateCapacitacion(i, 'nombre', e.target.value)}
+                            style={{ flex: 2, padding: "6px 10px", fontSize: "13px" }}
+                            required
+                          />
+                          <input 
+                            type="number" 
+                            className="form-input" 
+                            placeholder="Horas" 
+                            value={cap.horas}
+                            onChange={(e) => handleUpdateCapacitacion(i, 'horas', parseInt(e.target.value) || 0)}
+                            style={{ width: "70px", padding: "6px 10px", fontSize: "13px" }}
+                            min="1"
+                            required
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => handleRemoveCapacitacion(i)}
+                            className="btn" 
+                            style={{ padding: "6px", backgroundColor: "var(--color-danger-bg)", color: "var(--color-danger)", border: "none" }}
+                            title="Eliminar"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
