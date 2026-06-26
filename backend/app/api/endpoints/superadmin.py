@@ -46,6 +46,9 @@ def create_company_admin(
         rfc=company_in.rfc,
         employee_count=emp_count,
         sector=company_in.sector,
+        address=company_in.address,
+        phone=company_in.phone,
+        main_activity=company_in.main_activity,
         active_guide=guide_type
     )
     db.add(company)
@@ -77,6 +80,12 @@ def update_company_admin(
         company.active_guide = "GUIA_II" if company_in.employee_count <= 50 else "GUIA_III"
     if company_in.sector is not None:
         company.sector = company_in.sector
+    if company_in.address is not None:
+        company.address = company_in.address
+    if company_in.phone is not None:
+        company.phone = company_in.phone
+    if company_in.main_activity is not None:
+        company.main_activity = company_in.main_activity
 
     db.commit()
     db.refresh(company)

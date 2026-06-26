@@ -544,6 +544,9 @@ def get_survey_statistics(
     dimension_counts = {}
     dimension_risks_dict = {}
     
+    department_scores_sum = {}
+    department_counts = {}
+    
     for r in responses:
         scores = r.calculated_scores
         if "requires_attention" in scores:
@@ -568,6 +571,11 @@ def get_survey_statistics(
             for dim, val in scores["dimension_scores"].items():
                 dimension_scores_sum[dim] = dimension_scores_sum.get(dim, 0.0) + val
                 dimension_counts[dim] = dimension_counts.get(dim, 0) + 1
+                
+        if "final_score" in scores:
+            dept = r.demographics.get("department", "Sin Departamento") if r.demographics else "Sin Departamento"
+            department_scores_sum[dept] = department_scores_sum.get(dept, 0.0) + scores["final_score"]
+            department_counts[dept] = department_counts.get(dept, 0) + 1
 
     from backend.app.core.nom035_engine import get_risk_level, GUIA_II_THRESHOLDS, GUIA_III_THRESHOLDS
     
@@ -611,6 +619,15 @@ def get_survey_statistics(
     global_score_average = round(total_score / total_scored_responses, 2) if total_scored_responses > 0 else 0
     global_score_risk = get_risk_level(global_score_average, thresholds["final"])
     
+    department_averages = {
+        dept: round(department_scores_sum[dept] / department_counts[dept], 2)
+        for dept in department_scores_sum
+    }
+    department_risks = {
+        dept: get_risk_level(department_averages[dept], thresholds["final"])
+        for dept in department_averages
+    }
+    
     return {
         "total_responses": total,
         "requires_clinical_referral_count": clinical_referrals,
@@ -623,6 +640,8 @@ def get_survey_statistics(
         "domain_risks": domain_risks_dict,
         "dimension_averages": dimension_averages,
         "dimension_risks": dimension_risks_dict,
+        "department_averages": department_averages,
+        "department_risks": department_risks,
         "available_filters": available_filters
     }
 

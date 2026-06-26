@@ -12,6 +12,9 @@ class Company(Base):
     rfc = Column(String, nullable=False)
     employee_count = Column(Integer, default=0)
     sector = Column(String, nullable=True)
+    address = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    main_activity = Column(String, nullable=True)
     active_guide = Column(String, nullable=False)  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
     logo_url = Column(String, nullable=True)
     consultant_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)

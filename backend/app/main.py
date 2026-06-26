@@ -58,6 +58,24 @@ try:
         except Exception:
             pass
 
+        # Add address to companies column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN address VARCHAR"))
+        except Exception:
+            pass
+
+        # Add phone to companies column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN phone VARCHAR"))
+        except Exception:
+            pass
+
+        # Add main_activity to companies column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN main_activity VARCHAR"))
+        except Exception:
+            pass
+
         # Add columns to survey_sessions if they don't exist
         try:
             conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN recopilador VARCHAR"))

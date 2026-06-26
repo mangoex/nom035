@@ -1,8 +1,7 @@
 // frontend/src/pages/Dashboard.jsx
 import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useReactToPrint } from "react-to-print";
-import { PrintableReport } from "../components/PrintableReport";
+import { generateNom035Report } from "../utils/pdfGenerator";
 import { 
   Users, 
   Activity, 
@@ -71,11 +70,22 @@ export default function Dashboard() {
   const [suggestions, setSuggestions] = useState([]);
   const [error, setError] = useState("");
   const [isAccessDenied, setIsAccessDenied] = useState(false);
-  const componentRef = useRef();
-  const handlePrint = useReactToPrint({
-    contentRef: componentRef,
-    documentTitle: "Reporte_NOM_035",
-  });
+  
+  const handleDownloadPDF = () => {
+    // get user info from context or token if needed, or just pass basic role
+    // we can parse the token from local storage to get the role and name
+    const token = localStorage.getItem("access_token");
+    let user = { name: "Responsable", role: "company_admin" };
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        user = { name: payload.sub, role: payload.role, ...payload };
+      } catch (e) {
+        console.error("Error parsing token", e);
+      }
+    }
+    generateNom035Report(stats, company, user);
+  };
   
   const [filters, setFilters] = useState({
     age_range: "",
@@ -276,7 +286,7 @@ export default function Dashboard() {
             </p>
           </div>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-            <button onClick={handlePrint} className="btn btn-primary" style={{ backgroundColor: "var(--color-primary)" }}>
+            <button onClick={handleDownloadPDF} className="btn btn-primary" style={{ backgroundColor: "var(--color-primary)" }}>
               Descargar Reporte PDF
             </button>
             <ThemeToggle />
@@ -620,16 +630,6 @@ export default function Dashboard() {
         )}
       </main>
 
-      {/* Hidden Printable Component */}
-      <div style={{ position: "absolute", top: "-10000px", left: "-10000px", overflow: "hidden" }}>
-        <PrintableReport 
-          ref={componentRef} 
-          company={company} 
-          stats={stats} 
-          tasks={tasks} 
-          suggestions={suggestions} 
-        />
-      </div>
     </div>
   );
 }

@@ -18,7 +18,10 @@ export default function SuperadminCompanies() {
     name: "",
     rfc: "",
     employee_count: 50,
-    sector: ""
+    sector: "",
+    address: "",
+    phone: "",
+    main_activity: ""
   });
   const [submitLoading, setSubmitLoading] = useState(false);
   const [modalError, setModalError] = useState("");
@@ -47,7 +50,10 @@ export default function SuperadminCompanies() {
       name: "",
       rfc: "",
       employee_count: 50,
-      sector: ""
+      sector: "",
+      address: "",
+      phone: "",
+      main_activity: ""
     });
     setModalError("");
     setShowModal(true);
@@ -59,7 +65,10 @@ export default function SuperadminCompanies() {
       name: company.name,
       rfc: company.rfc,
       employee_count: company.employee_count,
-      sector: company.sector || ""
+      sector: company.sector || "",
+      address: company.address || "",
+      phone: company.phone || "",
+      main_activity: company.main_activity || ""
     });
     setModalError("");
     setShowModal(true);
@@ -309,6 +318,39 @@ export default function SuperadminCompanies() {
                     placeholder="Ej. Manufactura, Servicios, Tecnología"
                     value={formData.sector}
                     onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="m_address">Domicilio Completo (Opcional)</label>
+                  <input
+                    id="m_address"
+                    type="text"
+                    className="form-input"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="m_phone">Teléfono (Opcional)</label>
+                  <input
+                    id="m_phone"
+                    type="text"
+                    className="form-input"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="m_main_activity">Actividad Principal (Opcional)</label>
+                  <input
+                    id="m_main_activity"
+                    type="text"
+                    className="form-input"
+                    value={formData.main_activity}
+                    onChange={(e) => setFormData({ ...formData, main_activity: e.target.value })}
                   />
                 </div>
 

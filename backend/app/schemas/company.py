@@ -8,12 +8,18 @@ class CompanyCreate(BaseModel):
     rfc: str
     employee_count: int
     sector: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    main_activity: Optional[str] = None
 
 class CompanyUpdate(BaseModel):
     name: Optional[str] = None
     rfc: Optional[str] = None
     employee_count: Optional[int] = None
     sector: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    main_activity: Optional[str] = None
 
 class CompanyOut(BaseModel):
     id: int
@@ -21,6 +27,9 @@ class CompanyOut(BaseModel):
     rfc: str
     employee_count: int
     sector: Optional[str]
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    main_activity: Optional[str] = None
     active_guide: str  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
     logo_url: Optional[str] = None
     consultant_id: Optional[int] = None

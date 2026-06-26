@@ -28,7 +28,10 @@ export default function ConsultantCompanies() {
     name: "",
     rfc: "",
     employee_count: 0,
-    sector: ""
+    sector: "",
+    address: "",
+    phone: "",
+    main_activity: ""
   });
   const [submitLoading, setSubmitLoading] = useState(false);
   const [modalError, setModalError] = useState("");
@@ -57,7 +60,10 @@ export default function ConsultantCompanies() {
       name: "",
       rfc: "",
       employee_count: 0,
-      sector: ""
+      sector: "",
+      address: "",
+      phone: "",
+      main_activity: ""
     });
     setModalError("");
     setShowModal(true);
@@ -69,7 +75,10 @@ export default function ConsultantCompanies() {
       name: company.name,
       rfc: company.rfc,
       employee_count: company.employee_count,
-      sector: company.sector || ""
+      sector: company.sector || "",
+      address: company.address || "",
+      phone: company.phone || "",
+      main_activity: company.main_activity || ""
     });
     setModalError("");
     setShowModal(true);
@@ -342,6 +351,39 @@ export default function ConsultantCompanies() {
                     className="form-input"
                     value={formData.sector}
                     onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="c_address">Domicilio Completo (Opcional)</label>
+                  <input
+                    id="c_address"
+                    type="text"
+                    className="form-input"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="c_phone">Teléfono (Opcional)</label>
+                  <input
+                    id="c_phone"
+                    type="text"
+                    className="form-input"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="c_main_activity">Actividad Principal (Opcional)</label>
+                  <input
+                    id="c_main_activity"
+                    type="text"
+                    className="form-input"
+                    value={formData.main_activity}
+                    onChange={(e) => setFormData({ ...formData, main_activity: e.target.value })}
                   />
                 </div>
 

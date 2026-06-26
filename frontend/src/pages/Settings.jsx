@@ -1,6 +1,6 @@
 // frontend/src/pages/Settings.jsx
 import React, { useEffect, useState } from "react";
-import { Settings as SettingsIcon, Image as ImageIcon, Save, Trash2, Building, Hash, Users, Activity } from "lucide-react";
+import { Settings as SettingsIcon, Image as ImageIcon, Save, Trash2, Building, Hash, Users, Activity, MapPin, Phone } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
@@ -14,7 +14,10 @@ export default function Settings() {
     name: "",
     rfc: "",
     employee_count: 0,
-    sector: ""
+    sector: "",
+    address: "",
+    phone: "",
+    main_activity: ""
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
@@ -33,7 +36,10 @@ export default function Settings() {
         name: res.data.name,
         rfc: res.data.rfc,
         employee_count: res.data.employee_count,
-        sector: res.data.sector || ""
+        sector: res.data.sector || "",
+        address: res.data.address || "",
+        phone: res.data.phone || "",
+        main_activity: res.data.main_activity || ""
       });
     } catch (err) {
       console.error(err);
@@ -194,6 +200,51 @@ export default function Settings() {
                     style={{ paddingLeft: "36px" }}
                     value={formData.sector}
                     onChange={(e) => setFormData({ ...formData, sector: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="address">Domicilio Completo (Opcional)</label>
+                <div style={{ position: "relative" }}>
+                  <MapPin size={18} style={{ position: "absolute", left: "10px", top: "10px", color: "var(--text-muted)" }} />
+                  <input
+                    id="address"
+                    type="text"
+                    className="form-input"
+                    style={{ paddingLeft: "36px" }}
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="phone">Teléfono (Opcional)</label>
+                <div style={{ position: "relative" }}>
+                  <Phone size={18} style={{ position: "absolute", left: "10px", top: "10px", color: "var(--text-muted)" }} />
+                  <input
+                    id="phone"
+                    type="text"
+                    className="form-input"
+                    style={{ paddingLeft: "36px" }}
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="main_activity">Actividad Económica Principal (Opcional)</label>
+                <div style={{ position: "relative" }}>
+                  <Activity size={18} style={{ position: "absolute", left: "10px", top: "10px", color: "var(--text-muted)" }} />
+                  <input
+                    id="main_activity"
+                    type="text"
+                    className="form-input"
+                    style={{ paddingLeft: "36px" }}
+                    value={formData.main_activity}
+                    onChange={(e) => setFormData({ ...formData, main_activity: e.target.value })}
                   />
                 </div>
               </div>

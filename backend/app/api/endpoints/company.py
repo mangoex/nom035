@@ -42,6 +42,12 @@ def update_my_company(
         company.employee_count = company_in.employee_count
     if company_in.sector is not None:
         company.sector = company_in.sector
+    if company_in.address is not None:
+        company.address = company_in.address
+    if company_in.phone is not None:
+        company.phone = company_in.phone
+    if company_in.main_activity is not None:
+        company.main_activity = company_in.main_activity
         
     db.commit()
     db.refresh(company)
