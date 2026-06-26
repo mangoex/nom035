@@ -16,7 +16,8 @@ import {
   Lock,
   Search,
   RefreshCw,
-  Eye
+  Eye,
+  X
 } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
