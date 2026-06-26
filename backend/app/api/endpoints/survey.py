@@ -2,12 +2,14 @@
 import secrets
 import io
 import pandas as pd
+from datetime import datetime, timedelta, date
+from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company, SurveySession, SurveyResponse, ActionPlan
-from backend.app.schemas.survey import SurveySessionOut, SurveyResponseCreate
+from backend.app.schemas.survey import SurveySessionOut, SurveyResponseCreate, SurveySessionCreate
 from backend.app.core.auth import get_current_user, get_current_admin
 from backend.app.core.nom035_engine import calculate_survey_scores, evaluate_guia_i
 
@@ -17,20 +19,27 @@ router = APIRouter()
 
 @router.post("/session", response_model=SurveySessionOut)
 def create_survey_session(
-    guide_type: str, # 'GUIA_I', 'GUIA_II', 'GUIA_III'
+    session_in: SurveySessionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    if guide_type not in ("GUIA_I", "GUIA_II", "GUIA_III"):
+    if session_in.guide_type not in ("GUIA_I", "GUIA_II", "GUIA_III"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Tipo de guía inválido. Debe ser GUIA_I, GUIA_II, o GUIA_III."
         )
 
+    # Validate secret key is present for Guia I
+    if session_in.guide_type == "GUIA_I" and not session_in.clave_secreta:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La clave secreta es obligatoria para la encuesta de traumas (Guía I)."
+        )
+
     # Deactivate any previous session of the same type for this company
     previous_sessions = db.query(SurveySession).filter(
         SurveySession.company_id == current_user.company_id,
-        SurveySession.guide_type == guide_type,
+        SurveySession.guide_type == session_in.guide_type,
         SurveySession.is_active == True
     ).all()
     for s in previous_sessions:
@@ -41,9 +50,14 @@ def create_survey_session(
     
     session = SurveySession(
         company_id=current_user.company_id,
-        guide_type=guide_type,
+        guide_type=session_in.guide_type,
         link_hash=link_hash,
-        is_active=True
+        is_active=True,
+        recopilador=session_in.recopilador,
+        creador=session_in.creador,
+        cedula_creador=session_in.cedula_creador,
+        fecha_fin=session_in.fecha_fin,
+        clave_secreta=session_in.clave_secreta
     )
     db.add(session)
     db.commit()
@@ -52,10 +66,30 @@ def create_survey_session(
 
 @router.get("/sessions", response_model=list[SurveySessionOut])
 def get_survey_sessions(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
-    return db.query(SurveySession).filter(SurveySession.company_id == current_user.company_id).all()
+    query = db.query(SurveySession).filter(SurveySession.company_id == current_user.company_id)
+    
+    if start_date:
+        try:
+            sd = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(SurveySession.created_at >= sd)
+        except ValueError:
+            pass
+            
+    if end_date:
+        try:
+            ed = datetime.strptime(end_date, "%Y-%m-%d")
+            # Include the entire day by querying up to the start of the next day
+            ed_limit = ed + timedelta(days=1)
+            query = query.filter(SurveySession.created_at < ed_limit)
+        except ValueError:
+            pass
+
+    return query.order_by(SurveySession.created_at.desc()).all()
 
 # --- CSV TEMPLATE & INGESTION ---
 
@@ -245,7 +279,11 @@ def delete_all_responses(
 # --- PUBLIC ENDPOINTS ---
 
 @router.get("/public/{link_hash}")
-def get_public_session_details(link_hash: str, db: Session = Depends(get_db)):
+def get_public_session_details(
+    link_hash: str,
+    clave: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
     session = db.query(SurveySession).filter(
         SurveySession.link_hash == link_hash,
         SurveySession.is_active == True
@@ -258,16 +296,34 @@ def get_public_session_details(link_hash: str, db: Session = Depends(get_db)):
         )
         
     company = db.query(Company).filter(Company.id == session.company_id).first()
+
+    # Verify secret key if present
+    if session.clave_secreta:
+        if not clave:
+            return {
+                "company_name": company.name,
+                "guide_type": session.guide_type,
+                "session_id": session.id,
+                "requires_clave": True
+            }
+        if clave != session.clave_secreta:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Clave secreta incorrecta."
+            )
+            
     return {
         "company_name": company.name,
         "guide_type": session.guide_type,
-        "session_id": session.id
+        "session_id": session.id,
+        "requires_clave": False
     }
 
 @router.post("/public/{link_hash}", status_code=status.HTTP_201_CREATED)
 def submit_public_response(
     link_hash: str,
     response_in: SurveyResponseCreate,
+    clave: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     session = db.query(SurveySession).filter(
@@ -279,6 +335,13 @@ def submit_public_response(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Liga de encuesta no válida o expirada."
+        )
+
+    # Validate secret key if session requires it
+    if session.clave_secreta and clave != session.clave_secreta:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Clave secreta incorrecta o no proporcionada."
         )
 
     company_id = session.company_id

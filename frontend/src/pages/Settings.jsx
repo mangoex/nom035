@@ -106,7 +106,7 @@ export default function Settings() {
   }
 
   // Usamos un string vacío o la variable de entorno para el base URL, ya que en dev o producción el API endpoint relativo funciona
-  const logoUrl = company?.logo_url ? `http://localhost:8000${company.logo_url}` : null;
+  const logoUrl = company?.logo_url ? `${api.defaults.baseURL || ""}${company.logo_url}` : null;
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "var(--bg-primary)" }}>

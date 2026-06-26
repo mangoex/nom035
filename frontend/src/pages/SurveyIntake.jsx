@@ -9,7 +9,14 @@ import {
   AlertCircle, 
   CheckCircle,
   FileSpreadsheet,
-  Trash2
+  Plus,
+  Calendar,
+  User,
+  Award,
+  Lock,
+  Search,
+  RefreshCw,
+  Eye
 } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
@@ -19,10 +26,26 @@ export default function SurveyIntake() {
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState(null);
   const [sessions, setSessions] = useState([]);
-  const [activeSession, setActiveSession] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
   const [error, setError] = useState("");
   
+  // Date Filters for History
+  const [filterStartDate, setFilterStartDate] = useState("");
+  const [filterEndDate, setFilterEndDate] = useState("");
+
+  // Create Survey Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [modalError, setModalError] = useState("");
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    guide_type: "GUIA_II",
+    recopilador: "",
+    fecha_fin: "",
+    creador: "",
+    cedula_creador: "",
+    clave_secreta: ""
+  });
+
   // CSV upload state
   const [file, setFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
@@ -30,16 +53,13 @@ export default function SurveyIntake() {
 
   const fetchSessionData = async () => {
     try {
+      setError("");
       const [compRes, sessRes] = await Promise.all([
         api.get("/api/company/me"),
-        api.get("/api/survey/sessions")
+        api.get(`/api/survey/sessions?start_date=${filterStartDate}&end_date=${filterEndDate}`)
       ]);
       setCompany(compRes.data);
       setSessions(sessRes.data);
-      
-      // Look for active session matching company guide type
-      const active = sessRes.data.find(s => s.is_active && s.guide_type === compRes.data.active_guide);
-      setActiveSession(active);
     } catch (err) {
       console.error(err);
       setError("Error al conectar con el servidor.");
@@ -50,28 +70,66 @@ export default function SurveyIntake() {
 
   useEffect(() => {
     fetchSessionData();
-  }, []);
+  }, [filterStartDate, filterEndDate]);
 
-  const handleGenerateLink = async (guideType) => {
+  const handleOpenModal = () => {
+    // Autopopulate guide type based on company active guide
+    const defaultGuide = company?.active_guide || "GUIA_II";
+    // Set default end date to 30 days from now
+    const today = new Date();
+    const futureDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const yyyy = futureDate.getFullYear();
+    const mm = String(futureDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(futureDate.getDate()).padStart(2, '0');
+    const defaultDateStr = `${yyyy}-${mm}-${dd}`;
+
+    setFormData({
+      guide_type: defaultGuide,
+      recopilador: "",
+      fecha_fin: defaultDateStr,
+      creador: "",
+      cedula_creador: "",
+      clave_secreta: ""
+    });
+    setModalError("");
+    setShowModal(true);
+  };
+
+  const handleCreateSessionSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitLoading(true);
+    setModalError("");
+
+    // Additional check for secret key
+    if (formData.guide_type === "GUIA_I" && !formData.clave_secreta) {
+      setModalError("La clave secreta es obligatoria para la encuesta de traumas.");
+      setSubmitLoading(false);
+      return;
+    }
+
     try {
-      setError("");
-      const res = await api.post(`/api/survey/session?guide_type=${guideType}`);
-      setActiveSession(res.data);
-      // Refresh list
-      const sessRes = await api.get("/api/survey/sessions");
-      setSessions(sessRes.data);
+      await api.post("/api/survey/session", formData);
+      setShowModal(false);
+      fetchSessionData(); // Refresh list
     } catch (err) {
       console.error(err);
-      setError("No se pudo generar la liga de la encuesta.");
+      setModalError(err.response?.data?.detail || "Error al crear la encuesta.");
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
-  const handleCopyLink = () => {
-    if (!activeSession) return;
-    const url = `${window.location.origin}/survey/public/${activeSession.link_hash}`;
+  const handleCopyLink = (session) => {
+    // Resolve dynamic path using api.defaults.baseURL or fall back to window.location.origin
+    const base = api.defaults.baseURL && api.defaults.baseURL.startsWith("http") 
+      ? api.defaults.baseURL 
+      : window.location.origin;
+    const cleanBase = base.replace(/\/api$/, "").replace(/\/$/, "");
+    const url = `${cleanBase}/survey/public/${session.link_hash}`;
+    
     navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedId(session.id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleDownloadTemplate = async () => {
@@ -80,7 +138,6 @@ export default function SurveyIntake() {
       const res = await api.get(`/api/survey/csv/template?guide_type=${company.active_guide}`, {
         responseType: "blob"
       });
-      // Create download link
       const blob = new Blob([res.data], { type: "text/csv" });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -110,19 +167,18 @@ export default function SurveyIntake() {
     setUploadResult(null);
     setError("");
 
-    const formData = new FormData();
-    formData.append("file", file);
+    const data = new FormData();
+    data.append("file", file);
 
     try {
-      const res = await api.post(`/api/survey/csv/upload?guide_type=${company.active_guide}`, formData, {
+      const res = await api.post(`/api/survey/csv/upload?guide_type=${company.active_guide}`, data, {
         headers: {
           "Content-Type": "multipart/form-data"
         }
       });
       setUploadResult(res.data);
       setFile(null);
-      // Refetch stats to reflect newly uploaded data
-      fetchSessionData();
+      fetchSessionData(); // reload
     } catch (err) {
       console.error(err);
       if (err.response && err.response.data && err.response.data.detail) {
@@ -135,6 +191,14 @@ export default function SurveyIntake() {
     }
   };
 
+  const getSessionStatus = (session) => {
+    if (!session.is_active) return { label: "Desactivada", color: "var(--text-muted)" };
+    const today = new Date().setHours(0, 0, 0, 0);
+    const limitDate = new Date(session.fecha_fin).getTime();
+    if (today > limitDate) return { label: "Vencida", color: "var(--color-danger)" };
+    return { label: "Activa", color: "var(--color-success)" };
+  };
+
   if (loading) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", backgroundColor: "var(--bg-primary)" }}>
@@ -143,13 +207,11 @@ export default function SurveyIntake() {
     );
   }
 
-  const publicUrl = activeSession ? `${window.location.origin}/survey/public/${activeSession.link_hash}` : "";
-
   return (
     <div className="app-container">
       <Sidebar company={company} />
 
-      <main className="main-content">
+      <main className="main-content animate-fade-in">
         {/* Header */}
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
           <div>
@@ -170,7 +232,7 @@ export default function SurveyIntake() {
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
           
-          {/* Opción A: Encuesta Individual en línea */}
+          {/* Opción A: Encuesta en línea */}
           <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <div style={{ display: "flex", gap: "10px", alignItems: "center", color: "var(--color-primary)" }}>
               <Link2 size={24} />
@@ -178,61 +240,19 @@ export default function SurveyIntake() {
             </div>
             
             <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
-              Genera una liga pública única. Comparte este enlace por correo, WhatsApp o Slack con tus colaboradores para que contesten la encuesta de forma individual, confidencial y directa desde cualquier dispositivo.
+              Genera ligas públicas parametrizadas para enviárselas a tus colaboradores por correo, WhatsApp o Slack. Puedes definir quién recopila, quién crea y limitar la fecha de vigencia del enlace.
             </p>
 
-            {activeSession ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "12px" }}>
-                <div style={{ fontSize: "12px", color: "var(--color-success)", fontWeight: "600", display: "flex", gap: "6px", alignItems: "center" }}>
-                  <CheckCircle size={16} />
-                  <span>Enlace de encuesta activo</span>
-                </div>
-                
-                <div style={{ display: "flex", gap: "8px" }}>
-                  <input
-                    type="text"
-                    readOnly
-                    value={publicUrl}
-                    className="form-input"
-                    style={{ backgroundColor: "var(--bg-secondary)", fontFamily: "monospace", fontSize: "12px" }}
-                  />
-                  <button onClick={handleCopyLink} className="btn btn-secondary" style={{ padding: "10px", flexShrink: 0 }}>
-                    {copied ? <Check size={18} style={{ color: "var(--color-success)" }} /> : <Copy size={18} />}
-                  </button>
-                </div>
-                
-                <button
-                  onClick={() => handleGenerateLink(company.active_guide)}
-                  className="btn btn-secondary"
-                  style={{ marginTop: "8px", fontSize: "13px" }}
-                >
-                  Regenerar Enlace (Desactiva el anterior)
-                </button>
-              </div>
-            ) : (
-              <div style={{ marginTop: "12px" }}>
-                <button
-                  onClick={() => handleGenerateLink(company.active_guide)}
-                  className="btn btn-primary"
-                  style={{ width: "100%", padding: "12px" }}
-                >
-                  Activar y Generar Liga Pública
-                </button>
-              </div>
-            )}
-
-            {/* Extra Guía I generation for companies using II/III */}
-            {company?.active_guide !== "GUIA_I" && (
-              <div style={{ marginTop: "20px", borderTop: "1px dashed var(--border-color)", paddingTop: "16px" }}>
-                <h4 style={{ fontSize: "13px", fontWeight: "700", marginBottom: "6px" }}>Guía I (Acontecimientos Traumáticos)</h4>
-                <p style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "12px" }}>
-                  De forma complementaria, puedes levantar la Guía I de acontecimientos traumáticos severos en cualquier momento.
-                </p>
-                <button onClick={() => handleGenerateLink("GUIA_I")} className="btn btn-secondary" style={{ width: "100%", fontSize: "12px", padding: "8px" }}>
-                  Generar Enlace para Guía I
-                </button>
-              </div>
-            )}
+            <div style={{ marginTop: "auto", paddingTop: "12px" }}>
+              <button
+                onClick={handleOpenModal}
+                className="btn btn-primary"
+                style={{ width: "100%", padding: "12px", display: "flex", gap: "8px", justifyContent: "center" }}
+              >
+                <Plus size={18} />
+                Crear Nueva Encuesta
+              </button>
+            </div>
           </div>
 
           {/* Opción B: Carga masiva por CSV */}
@@ -243,7 +263,7 @@ export default function SurveyIntake() {
             </div>
             
             <p style={{ fontSize: "14px", color: "var(--text-secondary)", lineHeight: "1.6" }}>
-              Descarga la plantilla estructurada para tu tipo de empresa (<strong>{company.active_guide}</strong>). Captura los resultados recolectados previamente en papel, llena las columnas correspondientes y sube el archivo procesado.
+              Descarga la plantilla estructurada para tu tipo de empresa (<strong>{company?.active_guide}</strong>). Captura los resultados recolectados previamente en papel y sube el archivo procesado.
             </p>
 
             <button onClick={handleDownloadTemplate} className="btn btn-secondary" style={{ width: "100%", display: "flex", gap: "8px", justifyContent: "center" }}>
@@ -310,24 +330,285 @@ export default function SurveyIntake() {
                 <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
                   Se crearon y calificaron exitosamente <strong>{uploadResult.records_created} registros</strong> de colaboradores.
                 </p>
-                
-                {uploadResult.errors && uploadResult.errors.length > 0 && (
-                  <div style={{ marginTop: "12px", borderTop: "1px solid var(--border-color)", paddingTop: "8px" }}>
-                    <span style={{ fontSize: "12px", fontWeight: "600", color: "var(--color-danger)" }}>Errores en filas:</span>
-                    <ul style={{ fontSize: "11px", color: "var(--text-secondary)", listStyleType: "disc", paddingLeft: "16px", marginTop: "4px" }}>
-                      {uploadResult.errors.slice(0, 5).map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                      {uploadResult.errors.length > 5 && <li>Y {uploadResult.errors.length - 5} errores más...</li>}
-                    </ul>
-                  </div>
-                )}
               </div>
             )}
           </div>
-
         </div>
 
+        {/* HISTORICAL SURVEY LIST */}
+        <div className="glass-card animate-slide-up" style={{ marginTop: "24px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border-color)", paddingBottom: "16px", marginBottom: "16px", flexWrap: "wrap", gap: "16px" }}>
+            <div>
+              <h3 style={{ fontSize: "18px", fontWeight: "700", color: "var(--text-primary)" }}>Historial de Encuestas Creadas</h3>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Consulta las ligas de recolección y respuestas recolectadas.</p>
+            </div>
+            
+            {/* Filters */}
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Calendar size={16} style={{ color: "var(--text-muted)" }} />
+                <label style={{ fontSize: "12px", fontWeight: "500", color: "var(--text-secondary)" }}>Desde:</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  style={{ padding: "6px 10px", fontSize: "12px", width: "130px" }}
+                  value={filterStartDate}
+                  onChange={(e) => setFilterStartDate(e.target.value)}
+                />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Calendar size={16} style={{ color: "var(--text-muted)" }} />
+                <label style={{ fontSize: "12px", fontWeight: "500", color: "var(--text-secondary)" }}>Hasta:</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  style={{ padding: "6px 10px", fontSize: "12px", width: "130px" }}
+                  value={filterEndDate}
+                  onChange={(e) => setFilterEndDate(e.target.value)}
+                />
+              </div>
+              
+              {(filterStartDate || filterEndDate) && (
+                <button 
+                  onClick={() => { setFilterStartDate(""); setFilterEndDate(""); }}
+                  className="btn btn-secondary" 
+                  style={{ padding: "6px 12px", fontSize: "12px" }}
+                >
+                  Limpiar Filtros
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="table-container">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Tipo Guía</th>
+                  <th>Creador / Cédula</th>
+                  <th>Recopilador</th>
+                  <th>Vigencia</th>
+                  <th>Respuestas</th>
+                  <th>Estatus</th>
+                  <th style={{ textAlign: "right" }}>Enlace Público</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                      No se encontraron encuestas creadas en este periodo.
+                    </td>
+                  </tr>
+                ) : (
+                  sessions.map((s) => {
+                    const status = getSessionStatus(s);
+                    const isExpired = status.label === "Vencida" || status.label === "Desactivada";
+                    return (
+                      <tr key={s.id}>
+                        <td>
+                          <span className={`badge ${s.guide_type === 'GUIA_I' ? 'badge-alto' : s.guide_type === 'GUIA_II' ? 'badge-bajo' : 'badge-medio'}`}>
+                            {s.guide_type === 'GUIA_I' ? 'GUIA I (Traumas)' : s.guide_type}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: "600", color: "var(--text-primary)" }}>{s.creador || "No especificado"}</div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Ced: {s.cedula_creador || "N/A"}</div>
+                        </td>
+                        <td>{s.recopilador || "No especificado"}</td>
+                        <td>
+                          <div style={{ fontSize: "13px" }}>Inicio: {new Date(s.created_at).toLocaleDateString()}</div>
+                          <div style={{ fontSize: "13px", color: isExpired ? "var(--color-danger)" : "var(--text-secondary)" }}>
+                            Fin: {s.fecha_fin ? new Date(s.fecha_fin).toLocaleDateString() : "N/A"}
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: "700", color: "var(--color-primary)" }}>
+                            {s.response_count ?? 0}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: "600", color: status.color, fontSize: "13px" }}>
+                            {status.label}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          <button
+                            onClick={() => handleCopyLink(s)}
+                            disabled={isExpired}
+                            className="btn btn-secondary"
+                            style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px" }}
+                          >
+                            {copiedId === s.id ? (
+                              <>
+                                <Check size={14} style={{ color: "var(--color-success)" }} />
+                                Copiado
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={14} />
+                                Copiar Link
+                              </>
+                            )}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* MODAL: CREATE SURVEY SESSION */}
+        {showModal && (
+          <div style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.45)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px"
+          }}>
+            <div className="glass-card animate-slide-up" style={{ width: "100%", maxWidth: "480px", position: "relative" }}>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{ position: "absolute", top: "20px", right: "20px", background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}
+              >
+                <X size={20} />
+              </button>
+
+              <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "20px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <Plus size={20} style={{ color: "var(--color-primary)" }} />
+                Crear Nueva Encuesta
+              </h2>
+
+              {modalError && (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px", borderRadius: "var(--radius-sm)", backgroundColor: "var(--color-danger-bg)", color: "var(--color-danger)", fontSize: "13px", fontWeight: "500", marginBottom: "16px" }}>
+                  <AlertCircle size={16} />
+                  <span>{modalError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateSessionSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <div className="form-group">
+                  <label className="form-label">Tipo de Guía</label>
+                  <select
+                    className="form-input"
+                    value={formData.guide_type}
+                    onChange={(e) => setFormData({ ...formData, guide_type: e.target.value })}
+                  >
+                    <option value="GUIA_I">Guía I (Acontecimientos Traumáticos)</option>
+                    <option value="GUIA_II">Guía II (Factores de Riesgo - Pequeña/Mediana)</option>
+                    <option value="GUIA_III">Guía III (Factores y Entorno Organizacional - Grande)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="m_recopilador">Nombre del Recopilador</label>
+                  <div style={{ position: "relative" }}>
+                    <User size={16} style={{ position: "absolute", left: "12px", top: "12px", color: "var(--text-muted)" }} />
+                    <input
+                      id="m_recopilador"
+                      type="text"
+                      required
+                      placeholder="Nombre de quien recopila los datos"
+                      className="form-input"
+                      style={{ paddingLeft: "36px" }}
+                      value={formData.recopilador}
+                      onChange={(e) => setFormData({ ...formData, recopilador: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="m_creador">Nombre del Creador</label>
+                  <div style={{ position: "relative" }}>
+                    <User size={16} style={{ position: "absolute", left: "12px", top: "12px", color: "var(--text-muted)" }} />
+                    <input
+                      id="m_creador"
+                      type="text"
+                      required
+                      placeholder="Nombre de quien genera la encuesta"
+                      className="form-input"
+                      style={{ paddingLeft: "36px" }}
+                      value={formData.creador}
+                      onChange={(e) => setFormData({ ...formData, creador: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="m_cedula">Número de Cédula Profesional</label>
+                  <div style={{ position: "relative" }}>
+                    <Award size={16} style={{ position: "absolute", left: "12px", top: "12px", color: "var(--text-muted)" }} />
+                    <input
+                      id="m_cedula"
+                      type="text"
+                      required
+                      placeholder="Cédula profesional del creador/psicólogo"
+                      className="form-input"
+                      style={{ paddingLeft: "36px" }}
+                      value={formData.cedula_creador}
+                      onChange={(e) => setFormData({ ...formData, cedula_creador: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="m_fecha_fin">Fecha de Fin (Vigencia)</label>
+                  <div style={{ position: "relative" }}>
+                    <Calendar size={16} style={{ position: "absolute", left: "12px", top: "12px", color: "var(--text-muted)" }} />
+                    <input
+                      id="m_fecha_fin"
+                      type="date"
+                      required
+                      className="form-input"
+                      style={{ paddingLeft: "36px" }}
+                      value={formData.fecha_fin}
+                      onChange={(e) => setFormData({ ...formData, fecha_fin: e.target.value })}
+                    />
+                  </div>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                    * La fecha de inicio es el día de hoy.
+                  </span>
+                </div>
+
+                {formData.guide_type === "GUIA_I" && (
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="m_clave">Clave Secreta para Acceder</label>
+                    <div style={{ position: "relative" }}>
+                      <Lock size={16} style={{ position: "absolute", left: "12px", top: "12px", color: "var(--text-muted)" }} />
+                      <input
+                        id="m_clave"
+                        type="text"
+                        required
+                        placeholder="Define la contraseña requerida para responder"
+                        className="form-input"
+                        style={{ paddingLeft: "36px" }}
+                        value={formData.clave_secreta}
+                        onChange={(e) => setFormData({ ...formData, clave_secreta: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+                  <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary">
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={submitLoading} className="btn btn-primary">
+                    {submitLoading ? "Creando..." : "Generar Liga de Encuesta"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

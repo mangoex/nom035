@@ -39,10 +39,28 @@ try:
             conn.execute(text("ALTER TABLE users ADD COLUMN creditos INTEGER DEFAULT 0"))
         except Exception:
             pass
-            
-        # Update companies and sessions stuck on GUIA_I
-        conn.execute(text("UPDATE companies SET active_guide = 'GUIA_II' WHERE active_guide = 'GUIA_I'"))
-        conn.execute(text("UPDATE survey_sessions SET guide_type = 'GUIA_II' WHERE guide_type = 'GUIA_I'"))
+
+        # Add columns to survey_sessions if they don't exist
+        try:
+            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN recopilador VARCHAR"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN creador VARCHAR"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN cedula_creador VARCHAR"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN fecha_fin DATE"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN clave_secreta VARCHAR"))
+        except Exception:
+            pass
 except Exception as e:
     print("Auto-migration skipped or failed:", e)
 

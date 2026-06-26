@@ -63,7 +63,7 @@ export default function Sidebar({ company }) {
           <>
             {company?.logo_url ? (
               <img 
-                src={`http://localhost:8000${company.logo_url}`} 
+                src={`${api.defaults.baseURL || ""}${company.logo_url}`} 
                 alt="Logo Empresa" 
                 style={{ width: "40px", height: "40px", objectFit: "contain", borderRadius: "4px", backgroundColor: "#fff", padding: "2px" }}
               />

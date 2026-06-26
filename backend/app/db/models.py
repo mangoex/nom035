@@ -48,11 +48,20 @@ class SurveySession(Base):
     guide_type = Column(String, nullable=False)  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
     link_hash = Column(String, unique=True, index=True, nullable=False)
     is_active = Column(Boolean, default=True)
+    recopilador = Column(String, nullable=True)
+    creador = Column(String, nullable=True)
+    cedula_creador = Column(String, nullable=True)
+    fecha_fin = Column(Date, nullable=True)
+    clave_secreta = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
     company = relationship("Company", back_populates="survey_sessions")
     responses = relationship("SurveyResponse", back_populates="survey_session", cascade="all, delete-orphan")
+
+    @property
+    def response_count(self) -> int:
+        return len(self.responses)
 
 
 class SurveyResponse(Base):

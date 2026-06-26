@@ -9,13 +9,27 @@ class DemographicsSchema(BaseModel):
     department: str = Field(description="e.g. Administración, Ventas, Operaciones")
     position: str = Field(description="e.g. Operativo, Supervisor, Directivo")
 
+class SurveySessionCreate(BaseModel):
+    guide_type: str
+    recopilador: str
+    fecha_fin: datetime.date
+    creador: str
+    cedula_creador: str
+    clave_secreta: Optional[str] = None
+
 class SurveySessionOut(BaseModel):
     id: int
     company_id: int
     guide_type: str
     link_hash: str
     is_active: bool
+    recopilador: Optional[str] = None
+    creador: Optional[str] = None
+    cedula_creador: Optional[str] = None
+    fecha_fin: Optional[datetime.date] = None
+    clave_secreta: Optional[str] = None
     created_at: datetime.datetime
+    response_count: int = 0
 
     class Config:
         from_attributes = True
