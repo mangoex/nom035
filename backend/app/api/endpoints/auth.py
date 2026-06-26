@@ -140,6 +140,9 @@ def update_profile(
     if profile_in.cedula_profesional is not None:
         current_user.cedula_profesional = profile_in.cedula_profesional
 
+    if profile_in.capacitaciones is not None:
+        current_user.capacitaciones = profile_in.capacitaciones
+
     db.commit()
     db.refresh(current_user)
     return current_user

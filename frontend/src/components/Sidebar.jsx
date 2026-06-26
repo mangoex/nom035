@@ -8,9 +8,10 @@ import {
   FileText, 
   LogOut,
   Building,
-  Settings,
   Users,
-  BookOpen
+  BookOpen,
+  Plus,
+  Trash2
 } from "lucide-react";
 import api from "../utils/api";
 
@@ -42,6 +43,7 @@ export default function Sidebar({ company }) {
   const [profilePassword, setProfilePassword] = useState("");
   const [profileCedula, setProfileCedula] = useState("");
   const [profileLogo, setProfileLogo] = useState(null);
+  const [profileCapacitaciones, setProfileCapacitaciones] = useState([]);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [updatingProfile, setUpdatingProfile] = useState(false);
 
@@ -51,6 +53,7 @@ export default function Sidebar({ company }) {
     setProfilePassword("");
     setProfileCedula(user?.cedula_profesional || "");
     setProfileLogo(null);
+    setProfileCapacitaciones(user?.capacitaciones || []);
     setIsProfileModalOpen(true);
   };
 
@@ -62,7 +65,8 @@ export default function Sidebar({ company }) {
         name: profileName,
         email: profileEmail,
         password: profilePassword || null,
-        cedula_profesional: profileCedula || null
+        cedula_profesional: profileCedula || null,
+        capacitaciones: profileCapacitaciones
       });
 
       if (profileLogo) {
@@ -312,7 +316,9 @@ export default function Sidebar({ company }) {
         }}>
           <div className="glass-card" style={{
             width: "100%",
-            maxWidth: "450px",
+            maxWidth: user?.role === "consultor" ? "650px" : "450px",
+            maxHeight: "90vh",
+            overflowY: "auto",
             backgroundColor: "var(--bg-secondary)",
             padding: "24px",
             borderRadius: "var(--radius-md)",
@@ -376,6 +382,97 @@ export default function Sidebar({ company }) {
                   />
                 </div>
               )}
+              
+              {user?.role === "consultor" && (
+                <div style={{ marginTop: "8px", borderTop: "1px solid var(--border-color)", paddingTop: "16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Capacitaciones que puede impartir</label>
+                    <button
+                      type="button"
+                      onClick={() => setProfileCapacitaciones([...profileCapacitaciones, { codigo: "", nombre: "", horas: "" }])}
+                      className="btn btn-secondary"
+                      style={{ padding: "4px 12px", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}
+                    >
+                      <Plus size={14} /> Agregar
+                    </button>
+                  </div>
+                  
+                  {profileCapacitaciones.length === 0 ? (
+                    <div style={{ padding: "16px", textAlign: "center", backgroundColor: "var(--bg-primary)", borderRadius: "var(--radius-sm)", border: "1px dashed var(--border-color)", color: "var(--text-muted)", fontSize: "13px" }}>
+                      No hay capacitaciones registradas.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "250px", overflowY: "auto", paddingRight: "8px" }}>
+                      {profileCapacitaciones.map((cap, idx) => (
+                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 2fr 80px 40px", gap: "8px", alignItems: "start", backgroundColor: "var(--bg-primary)", padding: "12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+                          <div>
+                            <label style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px", display: "block" }}>Código *</label>
+                            <input
+                              type="text"
+                              required
+                              className="form-input"
+                              style={{ padding: "6px 8px", fontSize: "13px" }}
+                              value={cap.codigo}
+                              onChange={(e) => {
+                                const newCaps = [...profileCapacitaciones];
+                                newCaps[idx].codigo = e.target.value;
+                                setProfileCapacitaciones(newCaps);
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px", display: "block" }}>Nombre de la Capacitación *</label>
+                            <input
+                              type="text"
+                              required
+                              className="form-input"
+                              style={{ padding: "6px 8px", fontSize: "13px" }}
+                              value={cap.nombre}
+                              onChange={(e) => {
+                                const newCaps = [...profileCapacitaciones];
+                                newCaps[idx].nombre = e.target.value;
+                                setProfileCapacitaciones(newCaps);
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px", display: "block" }}>Horas *</label>
+                            <input
+                              type="number"
+                              required
+                              min="1"
+                              className="form-input"
+                              style={{ padding: "6px 8px", fontSize: "13px" }}
+                              value={cap.horas}
+                              onChange={(e) => {
+                                const newCaps = [...profileCapacitaciones];
+                                newCaps[idx].horas = parseInt(e.target.value) || "";
+                                setProfileCapacitaciones(newCaps);
+                              }}
+                            />
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", paddingTop: "16px" }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newCaps = [...profileCapacitaciones];
+                                newCaps.splice(idx, 1);
+                                setProfileCapacitaciones(newCaps);
+                              }}
+                              style={{ background: "transparent", border: "none", color: "var(--color-danger)", cursor: "pointer", padding: "6px", borderRadius: "4px", display: "flex", alignItems: "center", justifyContent: "center" }}
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = "var(--color-danger-bg)"}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "8px" }}>
                 <button
                   type="button"

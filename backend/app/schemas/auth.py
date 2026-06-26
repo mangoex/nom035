@@ -1,6 +1,6 @@
 # backend/app/schemas/auth.py
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List, Dict, Any
 import datetime
 
 class UserRegister(BaseModel):
@@ -25,6 +25,7 @@ class UserOut(BaseModel):
     cedula_profesional: Optional[str] = None
     creditos: Optional[int] = None
     logo_url: Optional[str] = None
+    capacitaciones: Optional[List[Dict[str, Any]]] = None
     created_at: datetime.datetime
 
     class Config:
@@ -52,4 +53,5 @@ class ProfileUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     cedula_profesional: Optional[str] = None
+    capacitaciones: Optional[List[Dict[str, Any]]] = None
 
