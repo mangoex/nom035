@@ -8,6 +8,7 @@ import {
   FileText, 
   LogOut,
   Building,
+  Settings,
   Users,
   BookOpen,
   Plus,
@@ -397,13 +398,13 @@ export default function Sidebar({ company }) {
                     </button>
                   </div>
                   
-                  {profileCapacitaciones.length === 0 ? (
+                  {(!profileCapacitaciones || profileCapacitaciones.length === 0) ? (
                     <div style={{ padding: "16px", textAlign: "center", backgroundColor: "var(--bg-primary)", borderRadius: "var(--radius-sm)", border: "1px dashed var(--border-color)", color: "var(--text-muted)", fontSize: "13px" }}>
                       No hay capacitaciones registradas.
                     </div>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "250px", overflowY: "auto", paddingRight: "8px" }}>
-                      {profileCapacitaciones.map((cap, idx) => (
+                      {(profileCapacitaciones || []).map((cap, idx) => (
                         <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 2fr 80px 40px", gap: "8px", alignItems: "start", backgroundColor: "var(--bg-primary)", padding: "12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
                           <div>
                             <label style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px", display: "block" }}>Código *</label>
