@@ -175,6 +175,25 @@ export default function SurveyIntake() {
     }
   };
 
+  const handleDownloadExcel = async (session) => {
+    try {
+      const res = await api.get(`/api/survey/sessions/${session.id}/export-excel`, {
+        responseType: "blob"
+      });
+      const blob = new Blob([res.data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `resultados_${session.guide_type.toLowerCase()}_${session.id}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.detail || "No se pudo descargar el archivo Excel.");
+    }
+  };
+
   const handleDownloadTemplate = async () => {
     if (!company) return;
     try {
@@ -503,6 +522,15 @@ export default function SurveyIntake() {
                                   Copiar Link
                                 </>
                               )}
+                            </button>
+                            
+                            <button
+                              onClick={() => handleDownloadExcel(s)}
+                              className="btn btn-secondary"
+                              style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px", alignItems: "center", backgroundColor: "var(--color-success)", color: "white", borderColor: "var(--color-success)" }}
+                            >
+                              <Download size={14} />
+                              Descargar
                             </button>
                           </div>
                         </td>

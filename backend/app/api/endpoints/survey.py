@@ -91,6 +91,77 @@ def get_survey_sessions(
 
     return query.order_by(SurveySession.created_at.desc()).all()
 
+@router.get("/sessions/{session_id}/export-excel")
+def export_session_results_excel(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    session = db.query(SurveySession).filter(
+        SurveySession.id == session_id,
+        SurveySession.company_id == current_user.company_id
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Encuesta no encontrada.")
+        
+    responses = db.query(SurveyResponse).filter(SurveyResponse.survey_session_id == session_id).all()
+    if not responses:
+        raise HTTPException(status_code=400, detail="No hay respuestas para exportar.")
+        
+    data = []
+    for r in responses:
+        row = {
+            "Fecha": r.created_at.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        # Add demographics
+        if isinstance(r.demographics, dict):
+            for k, v in r.demographics.items():
+                row[f"Demografico_{k}"] = v
+                
+        # Add answers
+        if isinstance(r.answers, dict):
+            for k, v in r.answers.items():
+                row[f"Respuesta_{k}"] = v
+                
+        # Add calculated scores
+        if isinstance(r.calculated_scores, dict):
+            if session.guide_type == "GUIA_I":
+                row["Requiere_Valoracion_Clinica"] = "Sí" if r.calculated_scores.get("requires_clinical_evaluation") else "No"
+            else:
+                row["Calificacion_Final"] = r.calculated_scores.get("final_score", "")
+                row["Nivel_Riesgo_Final"] = r.calculated_scores.get("final_risk", "")
+                
+                cat_scores = r.calculated_scores.get("category_scores", {})
+                cat_risks = r.calculated_scores.get("category_risks", {})
+                for cat in cat_scores:
+                    row[f"Categoria_{cat}"] = cat_scores[cat]
+                    row[f"Riesgo_{cat}"] = cat_risks.get(cat, "")
+                    
+                dom_scores = r.calculated_scores.get("domain_scores", {})
+                dom_risks = r.calculated_scores.get("domain_risks", {})
+                for dom in dom_scores:
+                    row[f"Dominio_{dom}"] = dom_scores[dom]
+                    row[f"Riesgo_{dom}"] = dom_risks.get(dom, "")
+        
+        data.append(row)
+        
+    df = pd.DataFrame(data)
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Resultados')
+        
+    output.seek(0)
+    
+    headers = {
+        'Content-Disposition': f'attachment; filename="resultados_{session.guide_type}_{session_id}.xlsx"'
+    }
+    return StreamingResponse(
+        output, 
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers=headers
+    )
+
 # --- CSV TEMPLATE & INGESTION ---
 
 @router.get("/csv/template")
