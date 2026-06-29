@@ -7,6 +7,7 @@ class TrainingItem(BaseModel):
     codigo: str
     nombre: str
     horas: int
+    nivel: Optional[int] = 1
 
 class ConsultantCreate(BaseModel):
     name: str

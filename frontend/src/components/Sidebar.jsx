@@ -397,7 +397,7 @@ export default function Sidebar({ company }) {
                     <label className="form-label" style={{ marginBottom: 0 }}>Capacitaciones que puede impartir</label>
                     <button
                       type="button"
-                      onClick={() => setProfileCapacitaciones([...profileCapacitaciones, { codigo: "", nombre: "", horas: "" }])}
+                      onClick={() => setProfileCapacitaciones([...profileCapacitaciones, { codigo: "", nombre: "", horas: "", nivel: 1 }])}
                       className="btn btn-secondary"
                       style={{ padding: "4px 12px", fontSize: "12px", display: "flex", alignItems: "center", gap: "6px" }}
                     >
@@ -412,7 +412,7 @@ export default function Sidebar({ company }) {
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "12px", maxHeight: "250px", overflowY: "auto", paddingRight: "8px" }}>
                       {(profileCapacitaciones || []).map((cap, idx) => (
-                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 2fr 80px 40px", gap: "8px", alignItems: "start", backgroundColor: "var(--bg-primary)", padding: "12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
+                        <div key={idx} style={{ display: "grid", gridTemplateColumns: "1fr 2fr 80px 80px 40px", gap: "8px", alignItems: "start", backgroundColor: "var(--bg-primary)", padding: "12px", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-color)" }}>
                           <div>
                             <label style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px", display: "block" }}>Código *</label>
                             <input
@@ -455,6 +455,23 @@ export default function Sidebar({ company }) {
                               onChange={(e) => {
                                 const newCaps = [...profileCapacitaciones];
                                 newCaps[idx].horas = parseInt(e.target.value) || "";
+                                setProfileCapacitaciones(newCaps);
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: "11px", color: "var(--text-muted)", marginBottom: "4px", display: "block" }}>Nivel *</label>
+                            <input
+                              type="number"
+                              required
+                              min="1"
+                              max="9"
+                              className="form-input"
+                              style={{ padding: "6px 8px", fontSize: "13px" }}
+                              value={cap.nivel || 1}
+                              onChange={(e) => {
+                                const newCaps = [...profileCapacitaciones];
+                                newCaps[idx].nivel = parseInt(e.target.value) || 1;
                                 setProfileCapacitaciones(newCaps);
                               }}
                             />

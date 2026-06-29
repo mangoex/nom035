@@ -1,6 +1,6 @@
 // frontend/src/pages/CompanyTrainings.jsx
 import React, { useEffect, useState } from "react";
-import { BookOpen, RefreshCw, AlertCircle, Clock, CheckCircle } from "lucide-react";
+import { BookOpen, RefreshCw, AlertCircle, Clock, CheckCircle, BarChart2 } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
@@ -112,8 +112,14 @@ export default function CompanyTrainings() {
                   fontSize: "13px",
                   gap: "6px"
                 }}>
-                  <Clock size={16} />
-                  <span><strong>{training.horas}</strong> horas de duración</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Clock size={16} />
+                    <span><strong>{training.horas}</strong> horas</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "12px" }}>
+                    <BarChart2 size={16} />
+                    <span>Nivel <strong>{training.nivel || 1}</strong></span>
+                  </div>
                 </div>
               </div>
             ))}

@@ -93,7 +93,7 @@ export default function SuperadminConsultants() {
   const handleAddCapacitacion = () => {
     setFormData({
       ...formData,
-      capacitaciones: [...formData.capacitaciones, { codigo: "", nombre: "", horas: 0 }]
+      capacitaciones: [...formData.capacitaciones, { codigo: "", nombre: "", horas: 0, nivel: 1 }]
     });
   };
 
@@ -477,6 +477,17 @@ export default function SuperadminConsultants() {
                             onChange={(e) => handleUpdateCapacitacion(i, 'horas', parseInt(e.target.value) || 0)}
                             style={{ width: "70px", padding: "6px 10px", fontSize: "13px" }}
                             min="1"
+                            required
+                          />
+                          <input 
+                            type="number" 
+                            className="form-input" 
+                            placeholder="Nivel" 
+                            value={cap.nivel || 1}
+                            onChange={(e) => handleUpdateCapacitacion(i, 'nivel', parseInt(e.target.value) || 1)}
+                            style={{ width: "60px", padding: "6px 10px", fontSize: "13px" }}
+                            min="1"
+                            max="9"
                             required
                           />
                           <button 
