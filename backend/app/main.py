@@ -58,6 +58,13 @@ try:
         except Exception:
             pass
 
+        # Add cedula_image_url to users column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN cedula_image_url VARCHAR"))
+        except Exception:
+            pass
+
+
         # Add capacitaciones to users column if it doesn't exist
         try:
             conn.execute(text("ALTER TABLE users ADD COLUMN capacitaciones JSON"))

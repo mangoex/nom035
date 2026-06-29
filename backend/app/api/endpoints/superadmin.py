@@ -242,3 +242,43 @@ def upload_consultant_logo(
     db.commit()
     db.refresh(user)
     return {"logo_url": user.logo_url}
+
+
+@router.post("/consultants/{user_id}/cedula_image")
+def upload_consultant_cedula_image(
+    user_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    user = db.query(User).filter(User.id == user_id, User.role == "consultor").first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Consultor no encontrado.")
+
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+        raise HTTPException(status_code=400, detail="El archivo debe ser PNG o JPEG.")
+
+    from backend.app.db.session import get_uploads_dir
+    uploads_dir = os.path.join(get_uploads_dir(), "cedulas")
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    ext = file.filename.split(".")[-1]
+    filename = f"cedula_{user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(uploads_dir, filename)
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    if user.cedula_image_url:
+        old_filename = user.cedula_image_url.split("/")[-1]
+        old_filepath = os.path.join(uploads_dir, old_filename)
+        if os.path.exists(old_filepath):
+            try:
+                os.remove(old_filepath)
+            except Exception:
+                pass
+
+    user.cedula_image_url = f"/uploads/cedulas/{filename}"
+    db.commit()
+    db.refresh(user)
+    return {"cedula_image_url": user.cedula_image_url}

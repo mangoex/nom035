@@ -23,6 +23,7 @@ class UserOut(BaseModel):
     role: str
     company_id: Optional[int] = None
     cedula_profesional: Optional[str] = None
+    cedula_image_url: Optional[str] = None
     creditos: Optional[int] = None
     logo_url: Optional[str] = None
     capacitaciones: Optional[List[Dict[str, Any]]] = None

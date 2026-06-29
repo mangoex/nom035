@@ -23,6 +23,7 @@ export default function SuperadminConsultants() {
     capacitaciones: []
   });
   const [profileLogo, setProfileLogo] = useState(null);
+  const [profileCedulaImage, setProfileCedulaImage] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [modalError, setModalError] = useState("");
 
@@ -55,6 +56,7 @@ export default function SuperadminConsultants() {
       capacitaciones: []
     });
     setProfileLogo(null);
+    setProfileCedulaImage(null);
     setModalError("");
     setShowModal(true);
   };
@@ -70,6 +72,7 @@ export default function SuperadminConsultants() {
       capacitaciones: consultant.capacitaciones || []
     });
     setProfileLogo(null);
+    setProfileCedulaImage(null);
     setModalError("");
     setShowModal(true);
   };
@@ -120,7 +123,7 @@ export default function SuperadminConsultants() {
     try {
       let savedConsultantId = null;
 
-      if (editingCompanyWrapper()) {
+      if (editingConsultant) {
         // Edit flow
         const dataToSend = { ...formData };
         if (!dataToSend.password) {
@@ -143,7 +146,19 @@ export default function SuperadminConsultants() {
         await api.post(`/api/superadmin/consultants/${savedConsultantId}/logo`, form, {
           headers: { "Content-Type": "multipart/form-data" }
         });
-        fetchConsultants(); // Refetch to get the updated logo URL
+      }
+
+      // Upload cedula image if selected
+      if (profileCedulaImage && savedConsultantId) {
+        const form = new FormData();
+        form.append("file", profileCedulaImage);
+        await api.post(`/api/superadmin/consultants/${savedConsultantId}/cedula_image`, form, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+      }
+
+      if (profileLogo || profileCedulaImage) {
+        fetchConsultants(); // Refetch to get the updated URLs
       }
 
       setShowModal(false);
@@ -361,17 +376,37 @@ export default function SuperadminConsultants() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label" htmlFor="mc_cedula">Número de Cédula Profesional</label>
-                  <input
-                    id="mc_cedula"
-                    type="text"
-                    required
-                    className="form-input"
-                    placeholder="Cédula SEP de 7 u 8 dígitos"
-                    value={formData.cedula_profesional}
-                    onChange={(e) => setFormData({ ...formData, cedula_profesional: e.target.value })}
-                  />
-                </div>
+                    <label className="form-label" style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Award size={14} /> Cédula Profesional (Número)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.cedula_profesional}
+                      onChange={(e) => setFormData({ ...formData, cedula_profesional: e.target.value })}
+                      placeholder="Ej. 12345678"
+                    />
+                  </div>
+                  
+                  <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                    <label className="form-label" style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                      Imagen de Cédula Profesional (PNG/JPG)
+                    </label>
+                    <input
+                      type="file"
+                      accept=".png, .jpg, .jpeg"
+                      className="form-input"
+                      style={{ padding: "8px" }}
+                      onChange={(e) => setProfileCedulaImage(e.target.files[0])}
+                    />
+                    {editingConsultant?.cedula_image_url && !profileCedulaImage && (
+                      <div style={{ marginTop: "8px", fontSize: "12px" }}>
+                        <a href={`${import.meta.env.VITE_API_URL || "http://localhost:8000"}${editingConsultant.cedula_image_url}`} target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none" }}>
+                          Ver Cédula Actual
+                        </a>
+                      </div>
+                    )}
+                  </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="mc_credits">Créditos de Uso</label>

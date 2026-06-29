@@ -181,3 +181,40 @@ def upload_user_logo(
     db.refresh(current_user)
     return {"logo_url": current_user.logo_url}
 
+
+@router.post("/me/cedula_image")
+def upload_user_cedula_image(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role != "consultor":
+        raise HTTPException(status_code=403, detail="Solo los consultores pueden subir una imagen de cédula.")
+
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+        raise HTTPException(status_code=400, detail="El archivo debe ser PNG o JPEG.")
+
+    from backend.app.db.session import get_uploads_dir
+    uploads_dir = os.path.join(get_uploads_dir(), "cedulas")
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    ext = file.filename.split(".")[-1]
+    filename = f"cedula_{current_user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(uploads_dir, filename)
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    if current_user.cedula_image_url:
+        old_filename = current_user.cedula_image_url.split("/")[-1]
+        old_filepath = os.path.join(uploads_dir, old_filename)
+        if os.path.exists(old_filepath):
+            try:
+                os.remove(old_filepath)
+            except Exception:
+                pass
+
+    current_user.cedula_image_url = f"/uploads/cedulas/{filename}"
+    db.commit()
+    db.refresh(current_user)
+    return {"cedula_image_url": current_user.cedula_image_url}

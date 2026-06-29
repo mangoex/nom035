@@ -30,6 +30,7 @@ class ConsultantOut(BaseModel):
     email: EmailStr
     role: str
     cedula_profesional: Optional[str] = None
+    cedula_image_url: Optional[str] = None
     creditos: Optional[int] = 0
     logo_url: Optional[str] = None
     capacitaciones: Optional[List[TrainingItem]] = []

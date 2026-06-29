@@ -43,6 +43,7 @@ export default function Sidebar({ company }) {
   const [profileEmail, setProfileEmail] = useState("");
   const [profilePassword, setProfilePassword] = useState("");
   const [profileCedula, setProfileCedula] = useState("");
+  const [profileCedulaImage, setProfileCedulaImage] = useState(null);
   const [profileLogo, setProfileLogo] = useState(null);
   const [profileCapacitaciones, setProfileCapacitaciones] = useState([]);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -53,6 +54,7 @@ export default function Sidebar({ company }) {
     setProfileEmail(user?.email || "");
     setProfilePassword("");
     setProfileCedula(user?.cedula_profesional || "");
+    setProfileCedulaImage(null);
     setProfileLogo(null);
     setProfileCapacitaciones(user?.capacitaciones || []);
     setIsProfileModalOpen(true);
@@ -77,6 +79,15 @@ export default function Sidebar({ company }) {
           headers: { "Content-Type": "multipart/form-data" }
         });
         res.data.logo_url = logoRes.data.logo_url;
+      }
+
+      if (profileCedulaImage) {
+        const form = new FormData();
+        form.append("file", profileCedulaImage);
+        const cedulaRes = await api.post("/api/auth/me/cedula_image", form, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        res.data.cedula_image_url = cedulaRes.data.cedula_image_url;
       }
 
       localStorage.setItem("user", JSON.stringify(res.data));
@@ -328,15 +339,34 @@ export default function Sidebar({ company }) {
                 />
               </div>
               {user?.role === "consultor" && (
-                <div className="form-group">
-                  <label className="form-label" style={{ marginBottom: "6px" }}>Cédula Profesional</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={profileCedula}
-                    onChange={(e) => setProfileCedula(e.target.value)}
-                  />
-                </div>
+                <>
+                  <div className="form-group">
+                    <label className="form-label" style={{ marginBottom: "6px" }}>Cédula Profesional (Número)</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={profileCedula}
+                      onChange={(e) => setProfileCedula(e.target.value)}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" style={{ marginBottom: "6px" }}>Imagen de Cédula Profesional (PNG/JPG)</label>
+                    <input
+                      type="file"
+                      accept=".png, .jpg, .jpeg"
+                      className="form-input"
+                      style={{ padding: "8px" }}
+                      onChange={(e) => setProfileCedulaImage(e.target.files[0])}
+                    />
+                    {user?.cedula_image_url && !profileCedulaImage && (
+                      <div style={{ marginTop: "8px", fontSize: "12px" }}>
+                        <a href={`${import.meta.env.VITE_API_URL || "http://localhost:8000"}${user.cedula_image_url}`} target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none" }}>
+                          Ver Cédula Actual
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
               <div className="form-group">
                 <label className="form-label" style={{ marginBottom: "6px" }}>Nueva Contraseña (Opcional)</label>

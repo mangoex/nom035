@@ -38,6 +38,7 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
     cedula_profesional = Column(String, nullable=True)
+    cedula_image_url = Column(String, nullable=True)
     creditos = Column(Integer, default=0, nullable=True)
     logo_url = Column(String, nullable=True)
     capacitaciones = Column(JSON, nullable=True) # Array of {codigo, nombre, horas}
