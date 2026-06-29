@@ -36,15 +36,6 @@ def create_survey_session(
             detail="La clave secreta es obligatoria para la encuesta de traumas (Guía I)."
         )
 
-    # Deactivate any previous session of the same type for this company
-    previous_sessions = db.query(SurveySession).filter(
-        SurveySession.company_id == current_user.company_id,
-        SurveySession.guide_type == session_in.guide_type,
-        SurveySession.is_active == True
-    ).all()
-    for s in previous_sessions:
-        s.is_active = False
-    
     # Generate new link hash
     link_hash = secrets.token_hex(16)
     
