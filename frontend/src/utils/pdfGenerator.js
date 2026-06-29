@@ -6,17 +6,38 @@ if (pdfFonts && pdfFonts.pdfMake) {
   pdfMake.vfs = pdfFonts.pdfMake.vfs;
 }
 
+const getImageDataUrl = async (url) => {
+  if (!url) return null;
+  try {
+    const fullUrl = url.startsWith('http') ? url : `http://localhost:8000${url}`;
+    const response = await fetch(fullUrl);
+    const blob = await response.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error("Failed to load image:", url, err);
+    return null;
+  }
+};
+
 /**
  * Generates the Official NOM-035 Report PDF
  * @param {Object} stats - The aggregated statistics from backend
  * @param {Object} company - The company information
  * @param {Object} user - The authenticated user (consultant or admin)
  */
-export const generateNom035Report = (stats, company, user) => {
+export const generateNom035Report = async (stats, company, user) => {
   if (!company || !stats) {
     alert("Faltan datos para generar el reporte.");
     return;
   }
+
+  const companyLogo = await getImageDataUrl(company.logo_url);
+  const consultantLogo = await getImageDataUrl(company.consultant_logo_url);
 
   const currentDate = new Date().toLocaleDateString('es-MX', {
     year: 'numeric',
@@ -104,10 +125,42 @@ export const generateNom035Report = (stats, company, user) => {
     conclusionsText = `Se han identificado áreas de oportunidad críticas en los siguientes dominios: ${criticalDomains.join(", ")}. Estos factores organizacionales están impactando negativamente el clima laboral y, si no se controlan mediante un plan de acción, podrían derivar en afectaciones a la salud laboral del personal (estrés crónico, ansiedad, burnout) y un potencial incremento en la siniestralidad o prima de riesgo ante el IMSS.`;
   }
 
+  // Define Header Columns
+  const headerColumns = [];
+  if (companyLogo) {
+    headerColumns.push({
+      image: companyLogo,
+      width: 60,
+      alignment: 'left'
+    });
+  } else {
+    headerColumns.push({ text: '', width: 60 });
+  }
+
+  headerColumns.push({
+    text: "INFORME TÉCNICO DE EVALUACIÓN DE FACTORES DE RIESGO PSICOSOCIAL Y ENTORNO ORGANIZACIONAL",
+    style: "mainTitle",
+    width: '*',
+    margin: [0, companyLogo || consultantLogo ? 10 : 0, 0, 0]
+  });
+
+  if (consultantLogo) {
+    headerColumns.push({
+      image: consultantLogo,
+      width: 60,
+      alignment: 'right'
+    });
+  } else {
+    headerColumns.push({ text: '', width: 60 });
+  }
+
   // Define Document Definition
   const docDefinition = {
     content: [
-      { text: "INFORME TÉCNICO DE EVALUACIÓN DE FACTORES DE RIESGO PSICOSOCIAL Y ENTORNO ORGANIZACIONAL", style: "mainTitle" },
+      {
+        columns: headerColumns,
+        margin: [0, 0, 0, 10]
+      },
       { text: "Cumplimiento del Numeral 7.7 de la Norma Oficial Mexicana NOM-035-STPS-2018\n\n", style: "subTitle" },
 
       { text: "A) DATOS DEL CENTRO DE TRABAJO VERIFICADO", style: "sectionTitle" },

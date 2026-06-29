@@ -38,6 +38,7 @@ class CompanyOut(BaseModel):
     policy_text: Optional[str] = None
     policy_pdf_url: Optional[str] = None
     consultant_id: Optional[int] = None
+    consultant_logo_url: Optional[str] = None
     created_at: datetime.datetime
 
     class Config:

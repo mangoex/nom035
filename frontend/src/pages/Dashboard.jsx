@@ -71,7 +71,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [isAccessDenied, setIsAccessDenied] = useState(false);
   
-  const handleDownloadPDF = () => {
+  const handleDownloadPDF = async () => {
     // get user info from context or token if needed, or just pass basic role
     // we can parse the token from local storage to get the role and name
     const token = localStorage.getItem("access_token");
@@ -84,7 +84,7 @@ export default function Dashboard() {
         console.error("Error parsing token", e);
       }
     }
-    generateNom035Report(stats, company, user);
+    await generateNom035Report(stats, company, user);
   };
   
   const [filters, setFilters] = useState({

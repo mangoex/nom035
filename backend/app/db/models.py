@@ -28,6 +28,12 @@ class Company(Base):
     survey_sessions = relationship("SurveySession", back_populates="company", cascade="all, delete-orphan")
     survey_responses = relationship("SurveyResponse", back_populates="company", cascade="all, delete-orphan")
     action_plans = relationship("ActionPlan", back_populates="company", cascade="all, delete-orphan")
+    
+    @property
+    def consultant_logo_url(self):
+        if self.consultant:
+            return self.consultant.logo_url
+        return None
 
 
 class User(Base):
