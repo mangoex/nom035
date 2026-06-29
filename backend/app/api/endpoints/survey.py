@@ -15,6 +15,28 @@ from backend.app.core.nom035_engine import calculate_survey_scores, evaluate_gui
 
 router = APIRouter()
 
+# --- MAINTENANCE ENDPOINTS ---
+
+@router.get("/maintenance/reactivate")
+def reactivate_surveys_maintenance(db: Session = Depends(get_db)):
+    """
+    Temporal endpoint to reactivate surveys that were incorrectly deactivated 
+    by the old rule, but whose end date is still in the future.
+    """
+    today = date.today()
+    surveys = db.query(SurveySession).filter(
+        SurveySession.is_active == False,
+        SurveySession.fecha_fin >= today
+    ).all()
+    
+    count = 0
+    for s in surveys:
+        s.is_active = True
+        count += 1
+        
+    db.commit()
+    return {"status": "success", "message": f"Se reactivaron {count} encuestas exitosamente."}
+
 # --- ADMIN ENDPOINTS ---
 
 @router.post("/session", response_model=SurveySessionOut)
