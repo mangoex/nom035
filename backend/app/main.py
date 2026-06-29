@@ -27,6 +27,18 @@ try:
             conn.execute(text("ALTER TABLE companies ADD COLUMN logo_url VARCHAR"))
         except Exception:
             pass
+            
+        # Add policy_text column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN policy_text VARCHAR"))
+        except Exception:
+            pass
+            
+        # Add policy_pdf_url column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN policy_pdf_url VARCHAR"))
+        except Exception:
+            pass
 
         # Add consultant_id column if it doesn't exist
         try:

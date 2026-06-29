@@ -21,6 +21,9 @@ class CompanyUpdate(BaseModel):
     phone: Optional[str] = None
     main_activity: Optional[str] = None
 
+class PolicyUpdate(BaseModel):
+    policy_text: str
+
 class CompanyOut(BaseModel):
     id: int
     name: str
@@ -32,6 +35,8 @@ class CompanyOut(BaseModel):
     main_activity: Optional[str] = None
     active_guide: str  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
     logo_url: Optional[str] = None
+    policy_text: Optional[str] = None
+    policy_pdf_url: Optional[str] = None
     consultant_id: Optional[int] = None
     created_at: datetime.datetime
 

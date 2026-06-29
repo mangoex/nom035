@@ -6,7 +6,7 @@ import uuid
 from sqlalchemy.orm import Session
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company
-from backend.app.schemas.company import CompanyOut, CompanyUpdate
+from backend.app.schemas.company import CompanyOut, CompanyUpdate, PolicyUpdate
 from backend.app.core.auth import get_current_admin
 
 router = APIRouter()
@@ -94,6 +94,60 @@ def upload_logo(
     db.refresh(company)
     
     return {"logo_url": company.logo_url}
+
+@router.put("/me/policy", response_model=CompanyOut)
+def update_policy(
+    policy_in: PolicyUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada.")
+        
+    company.policy_text = policy_in.policy_text
+    db.commit()
+    db.refresh(company)
+    return company
+
+@router.post("/me/policy-pdf")
+def upload_policy_pdf(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    company = db.query(Company).filter(Company.id == current_user.company_id).first()
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada.")
+
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="El archivo debe ser PDF.")
+
+    from backend.app.db.session import get_uploads_dir
+    uploads_dir = os.path.join(get_uploads_dir(), "policies")
+    os.makedirs(uploads_dir, exist_ok=True)
+
+    ext = file.filename.split(".")[-1]
+    filename = f"policy_{company.id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filepath = os.path.join(uploads_dir, filename)
+
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    if company.policy_pdf_url:
+        old_filename = company.policy_pdf_url.split("/")[-1]
+        old_filepath = os.path.join(uploads_dir, old_filename)
+        if os.path.exists(old_filepath):
+            try:
+                os.remove(old_filepath)
+            except:
+                pass
+
+    company.policy_pdf_url = f"/uploads/policies/{filename}"
+    db.commit()
+    db.refresh(company)
+    
+    return {"policy_pdf_url": company.policy_pdf_url}
 
 @router.get("/consultant-trainings")
 def get_consultant_trainings(

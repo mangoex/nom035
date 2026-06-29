@@ -17,6 +17,8 @@ class Company(Base):
     main_activity = Column(String, nullable=True)
     active_guide = Column(String, nullable=False)  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
     logo_url = Column(String, nullable=True)
+    policy_text = Column(String, nullable=True)
+    policy_pdf_url = Column(String, nullable=True)
     consultant_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
