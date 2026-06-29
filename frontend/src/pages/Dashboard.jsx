@@ -11,7 +11,9 @@ import {
   ClipboardCheck,
   Filter,
   XCircle,
-  BarChart2
+  BarChart2,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -28,8 +30,10 @@ import {
   RadarChart,
   PolarGrid,
   PolarAngleAxis,
-  PolarRadiusAxis
+  PolarRadiusAxis,
+  Legend
 } from "recharts";
+import { QUESTIONS_GUIA_II, QUESTIONS_GUIA_III } from "../utils/questions";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
@@ -96,6 +100,14 @@ export default function Dashboard() {
     end_date: ""
   });
   const [selectedRows, setSelectedRows] = useState([]);
+  const [expandedDimensions, setExpandedDimensions] = useState({});
+
+  const toggleDimension = (dimName) => {
+    setExpandedDimensions(prev => ({
+      ...prev,
+      [dimName]: !prev[dimName]
+    }));
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -531,17 +543,46 @@ export default function Dashboard() {
                 <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto", maxHeight: "520px" }}>
                   <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Mapa de Calor: Dimensiones de Riesgo (Anexos)</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {radarDataDimensions.map((dim, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", borderRadius: "8px", backgroundColor: RISK_COLORS[dim.Riesgo] ? `${RISK_COLORS[dim.Riesgo]}15` : "transparent", borderLeft: `4px solid ${RISK_COLORS[dim.Riesgo] || "#cbd5e1"}` }}>
-                        <span style={{ fontSize: "13px", fontWeight: "500", color: "var(--text-primary)" }}>{dim.fullName}</span>
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <span style={{ fontSize: "14px", fontWeight: "700" }}>{dim.Puntaje}</span>
-                          <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "12px", backgroundColor: RISK_COLORS[dim.Riesgo] ? `${RISK_COLORS[dim.Riesgo]}20` : "transparent", color: RISK_COLORS[dim.Riesgo] || "var(--text-primary)" }}>
-                            {dim.Riesgo}
+                    {radarDataDimensions.map((dim, i) => {
+                      const isExpanded = expandedDimensions[dim.fullName];
+                      const questionIds = stats.dimension_mapping?.[dim.fullName] || [];
+                      const questionsList = company?.active_guide === "GUIA_II" ? QUESTIONS_GUIA_II : QUESTIONS_GUIA_III;
+                      
+                      return (
+                      <div key={i} style={{ display: "flex", flexDirection: "column", padding: "8px 12px", borderRadius: "8px", backgroundColor: RISK_COLORS[dim.Riesgo] ? `${RISK_COLORS[dim.Riesgo]}15` : "transparent", borderLeft: `4px solid ${RISK_COLORS[dim.Riesgo] || "#cbd5e1"}` }}>
+                        <div 
+                          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+                          onClick={() => toggleDimension(dim.fullName)}
+                        >
+                          <span style={{ fontSize: "13px", fontWeight: "600", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            {dim.fullName}
                           </span>
+                          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <span style={{ fontSize: "14px", fontWeight: "700" }}>{dim.Puntaje}</span>
+                            <span style={{ fontSize: "11px", fontWeight: "700", padding: "2px 8px", borderRadius: "12px", backgroundColor: RISK_COLORS[dim.Riesgo] ? `${RISK_COLORS[dim.Riesgo]}20` : "transparent", color: RISK_COLORS[dim.Riesgo] || "var(--text-primary)" }}>
+                              {dim.Riesgo}
+                            </span>
+                          </div>
                         </div>
+                        {isExpanded && questionIds.length > 0 && (
+                          <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "6px", paddingLeft: "24px" }}>
+                            {questionIds.map(qid => {
+                              const qText = questionsList.find(q => q.id === qid)?.text || `Pregunta ${qid}`;
+                              const avg = stats.question_averages?.[`q${qid}`];
+                              return (
+                                <div key={qid} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", padding: "4px 0", borderBottom: "1px dashed var(--border-color)", fontSize: "12px" }}>
+                                  <span style={{ color: "var(--text-secondary)", flex: 1, paddingRight: "12px" }}>{qid}. {qText}</span>
+                                  <span style={{ fontWeight: "600", color: "var(--text-primary)" }}>
+                                    {avg !== undefined ? avg : "-"}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    )})}
                   </div>
                 </div>
               </div>

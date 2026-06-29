@@ -630,6 +630,9 @@ def get_survey_statistics(
     
     department_scores_sum = {}
     department_counts = {}
+
+    question_scores_sum = {}
+    question_counts = {}
     
     for r in responses:
         scores = r.calculated_scores
@@ -661,7 +664,12 @@ def get_survey_statistics(
             department_scores_sum[dept] = department_scores_sum.get(dept, 0.0) + scores["final_score"]
             department_counts[dept] = department_counts.get(dept, 0) + 1
 
-    from backend.app.core.nom035_engine import get_risk_level, GUIA_II_THRESHOLDS, GUIA_III_THRESHOLDS
+        if "calibrated_answers" in scores:
+            for q_key, val in scores["calibrated_answers"].items():
+                question_scores_sum[q_key] = question_scores_sum.get(q_key, 0.0) + val
+                question_counts[q_key] = question_counts.get(q_key, 0) + 1
+
+    from backend.app.core.nom035_engine import get_risk_level, GUIA_II_THRESHOLDS, GUIA_III_THRESHOLDS, GUIA_II_MAPPING, GUIA_III_MAPPING
     
     guide_type = current_user.company.active_guide if hasattr(current_user, "company") and current_user.company else "GUIA_III"
     thresholds = GUIA_II_THRESHOLDS if guide_type == "GUIA_II" else GUIA_III_THRESHOLDS
@@ -712,6 +720,13 @@ def get_survey_statistics(
         for dept in department_averages
     }
     
+    question_averages = {
+        q_key: round(question_scores_sum[q_key] / question_counts[q_key], 2)
+        for q_key in question_scores_sum
+    }
+
+    dimension_mapping = GUIA_II_MAPPING.get("dimensions", {}) if guide_type == "GUIA_II" else GUIA_III_MAPPING.get("dimensions", {})
+    
     return {
         "total_responses": total,
         "requires_clinical_referral_count": clinical_referrals,
@@ -726,7 +741,9 @@ def get_survey_statistics(
         "dimension_risks": dimension_risks_dict,
         "department_averages": department_averages,
         "department_risks": department_risks,
-        "available_filters": available_filters
+        "available_filters": available_filters,
+        "question_averages": question_averages,
+        "dimension_mapping": dimension_mapping
     }
 
 @router.get("/responses")
