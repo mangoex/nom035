@@ -585,8 +585,11 @@ export default function SurveyIntake() {
                     onChange={(e) => setFormData({ ...formData, guide_type: e.target.value })}
                   >
                     <option value="GUIA_I">Guía I (Acontecimientos Traumáticos)</option>
-                    <option value="GUIA_II">Guía II (Factores de Riesgo - Pequeña/Mediana)</option>
-                    <option value="GUIA_III">Guía III (Factores y Entorno Organizacional - Grande)</option>
+                    {company?.active_guide === "GUIA_III" ? (
+                      <option value="GUIA_III">Guía III (Factores y Entorno Organizacional - Grande)</option>
+                    ) : (
+                      <option value="GUIA_II">Guía II (Factores de Riesgo - Pequeña/Mediana)</option>
+                    )}
                   </select>
                 </div>
 
