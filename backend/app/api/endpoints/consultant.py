@@ -8,6 +8,7 @@ from backend.app.db.models import User, Company, SurveySession, SurveyResponse
 from backend.app.schemas.company import CompanyOut, CompanyCreate, CompanyUpdate
 from backend.app.schemas.auth import ConsultantUserCreate, ConsultantUserUpdate
 from backend.app.core.auth import get_current_consultant, get_password_hash
+from backend.app.core.company_utils import normalize_departments
 
 router = APIRouter()
 
@@ -84,6 +85,7 @@ def create_consultant_company(
         address=company_in.address,
         phone=company_in.phone,
         main_activity=company_in.main_activity,
+        departments=normalize_departments(company_in.departments) or [],
         active_guide=guide_type,
         consultant_id=current_user.id
     )
@@ -125,6 +127,8 @@ def update_consultant_company(
         company.phone = company_in.phone
     if company_in.main_activity is not None:
         company.main_activity = company_in.main_activity
+    if company_in.departments is not None:
+        company.departments = normalize_departments(company_in.departments)
 
     db.commit()
     db.refresh(company)

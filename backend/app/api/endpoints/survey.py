@@ -382,6 +382,7 @@ def get_public_session_details(
 
     return {
         "company_name": company.name,
+        "departments": company.departments or [],
         "guide_type": session.guide_type,
         "session_id": session.id,
         "requires_clave": False

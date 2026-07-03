@@ -101,6 +101,12 @@ try:
         except Exception:
             pass
 
+        # Add departments to companies column if it doesn't exist
+        try:
+            conn.execute(text("ALTER TABLE companies ADD COLUMN departments JSON"))
+        except Exception:
+            pass
+
         # Add columns to survey_sessions if they don't exist
         try:
             conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN recopilador VARCHAR"))

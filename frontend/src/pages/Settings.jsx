@@ -4,6 +4,8 @@ import { Settings as SettingsIcon, Image as ImageIcon, Save, Trash2, Building, H
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
+import DepartmentsEditor from "../components/DepartmentsEditor";
+import { normalizeDepartments } from "../utils/departments";
 
 export default function Settings() {
   const [loading, setLoading] = useState(true);
@@ -17,15 +19,12 @@ export default function Settings() {
     sector: "",
     address: "",
     phone: "",
-    main_activity: ""
+    main_activity: "",
+    departments: []
   });
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [updateLoading, setUpdateLoading] = useState(false);
-
-  useEffect(() => {
-    fetchCompany();
-  }, []);
 
   const fetchCompany = async () => {
     try {
@@ -39,7 +38,8 @@ export default function Settings() {
         sector: res.data.sector || "",
         address: res.data.address || "",
         phone: res.data.phone || "",
-        main_activity: res.data.main_activity || ""
+        main_activity: res.data.main_activity || "",
+        departments: normalizeDepartments(res.data.departments)
       });
     } catch (err) {
       console.error(err);
@@ -48,6 +48,10 @@ export default function Settings() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchCompany();
+  }, []);
 
   const handleUpdateData = async (e) => {
     e.preventDefault();
@@ -248,6 +252,12 @@ export default function Settings() {
                   />
                 </div>
               </div>
+
+              <DepartmentsEditor
+                inputId="company_departments"
+                departments={formData.departments}
+                onChange={(departments) => setFormData({ ...formData, departments })}
+              />
 
               <button type="submit" disabled={updateLoading} className="btn btn-primary" style={{ width: "100%", marginTop: "8px", display: "flex", justifyContent: "center", gap: "8px" }}>
                 <Save size={18} />

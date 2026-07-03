@@ -27,10 +27,6 @@ export default function SuperadminConsultants() {
   const [submitLoading, setSubmitLoading] = useState(false);
   const [modalError, setModalError] = useState("");
 
-  useEffect(() => {
-    fetchConsultants();
-  }, []);
-
   const fetchConsultants = async () => {
     setLoading(true);
     setError("");
@@ -44,6 +40,10 @@ export default function SuperadminConsultants() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchConsultants();
+  }, []);
 
   const handleOpenAdd = () => {
     setEditingConsultant(null);

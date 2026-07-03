@@ -8,6 +8,7 @@ from backend.app.db.session import get_db
 from backend.app.db.models import User, Company
 from backend.app.schemas.company import CompanyOut, CompanyUpdate, PolicyUpdate
 from backend.app.core.auth import get_current_admin
+from backend.app.core.company_utils import normalize_departments
 
 router = APIRouter()
 
@@ -48,6 +49,8 @@ def update_my_company(
         company.phone = company_in.phone
     if company_in.main_activity is not None:
         company.main_activity = company_in.main_activity
+    if company_in.departments is not None:
+        company.departments = normalize_departments(company_in.departments)
         
     db.commit()
     db.refresh(company)

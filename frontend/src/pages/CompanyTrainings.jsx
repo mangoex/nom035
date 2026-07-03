@@ -10,10 +10,6 @@ export default function CompanyTrainings() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetchTrainings();
-  }, []);
-
   const fetchTrainings = async () => {
     setLoading(true);
     setError("");
@@ -27,6 +23,10 @@ export default function CompanyTrainings() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTrainings();
+  }, []);
 
   return (
     <div className="app-container">

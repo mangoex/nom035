@@ -41,6 +41,7 @@ def client_fixture(session):
         rfc="TST123456ABC",
         employee_count=30,
         sector="Tech",
+        departments=["Operaciones", "Ventas"],
         active_guide="GUIA_II"
     )
     session.add(company)
@@ -159,6 +160,7 @@ def test_survey_public_authentication_and_submit(client, session):
     data = response.json()
     assert data["requires_clave"] is False
     assert data["company_name"] == "Test Company"
+    assert data["departments"] == ["Operaciones", "Ventas"]
     assert data["guide_type"] == "GUIA_I"
 
     # 2. Submit survey response - should succeed directly

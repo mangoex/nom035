@@ -1,5 +1,6 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
+import api from "./api";
 
 // Initialize fonts
 if (pdfFonts && pdfFonts.pdfMake) {
@@ -9,7 +10,10 @@ if (pdfFonts && pdfFonts.pdfMake) {
 const getImageDataUrl = async (url) => {
   if (!url) return null;
   try {
-    const fullUrl = url.startsWith('http') ? url : `http://localhost:8000${url}`;
+    const baseUrl = api.defaults.baseURL || window.location.origin;
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+    const fullUrl = url.startsWith('http') ? url : `${cleanBaseUrl}${cleanUrl}`;
     const response = await fetch(fullUrl);
     const blob = await response.blob();
     return await new Promise((resolve, reject) => {

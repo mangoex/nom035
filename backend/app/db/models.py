@@ -19,6 +19,7 @@ class Company(Base):
     logo_url = Column(String, nullable=True)
     policy_text = Column(String, nullable=True)
     policy_pdf_url = Column(String, nullable=True)
+    departments = Column(JSON, nullable=True, default=list)
     consultant_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

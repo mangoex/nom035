@@ -5,6 +5,7 @@ import { CheckCircle2, ShieldCheck, ClipboardCheck, ArrowLeft, ArrowRight, UserC
 import api from "../utils/api";
 import { QUESTIONS_GUIA_I, QUESTIONS_GUIA_II, QUESTIONS_GUIA_III } from "../utils/questions";
 import ThemeToggle from "../components/ThemeToggle";
+import { normalizeDepartments } from "../utils/departments";
 
 const LIKERT_OPTIONS = [
   "Siempre",
@@ -103,6 +104,7 @@ export default function SurveyPublic() {
   }
 
   const { company_name, guide_type } = companyDetails;
+  const companyDepartments = normalizeDepartments(companyDetails.departments);
   
   // Determine questions list
   let questions = [];
@@ -362,15 +364,30 @@ export default function SurveyPublic() {
 
                   <div className="form-group">
                     <label className="form-label" htmlFor="department">Departamento o Área</label>
-                    <input
-                      id="department"
-                      type="text"
-                      required
-                      placeholder="ej. Ventas, Administración"
-                      className="form-input"
-                      value={demographics.department}
-                      onChange={handleDemographicChange}
-                    />
+                    {companyDepartments.length > 0 ? (
+                      <select
+                        id="department"
+                        required
+                        className="form-input"
+                        value={demographics.department}
+                        onChange={handleDemographicChange}
+                      >
+                        <option value="">Seleccione...</option>
+                        {companyDepartments.map((department) => (
+                          <option key={department} value={department}>{department}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        id="department"
+                        type="text"
+                        required
+                        placeholder="ej. Ventas, Administración"
+                        className="form-input"
+                        value={demographics.department}
+                        onChange={handleDemographicChange}
+                      />
+                    )}
                   </div>
 
                   <div className="form-group">

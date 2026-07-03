@@ -14,6 +14,8 @@ import {
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
+import DepartmentsEditor from "../components/DepartmentsEditor";
+import { normalizeDepartments } from "../utils/departments";
 
 export default function ConsultantCompanies() {
   const [companies, setCompanies] = useState([]);
@@ -31,7 +33,8 @@ export default function ConsultantCompanies() {
     sector: "",
     address: "",
     phone: "",
-    main_activity: ""
+    main_activity: "",
+    departments: []
   });
   const [submitLoading, setSubmitLoading] = useState(false);
   const [modalError, setModalError] = useState("");
@@ -63,7 +66,8 @@ export default function ConsultantCompanies() {
       sector: "",
       address: "",
       phone: "",
-      main_activity: ""
+      main_activity: "",
+      departments: []
     });
     setModalError("");
     setShowModal(true);
@@ -78,7 +82,8 @@ export default function ConsultantCompanies() {
       sector: company.sector || "",
       address: company.address || "",
       phone: company.phone || "",
-      main_activity: company.main_activity || ""
+      main_activity: company.main_activity || "",
+      departments: normalizeDepartments(company.departments)
     });
     setModalError("");
     setShowModal(true);
@@ -386,6 +391,12 @@ export default function ConsultantCompanies() {
                     onChange={(e) => setFormData({ ...formData, main_activity: e.target.value })}
                   />
                 </div>
+
+                <DepartmentsEditor
+                  inputId="c_departments"
+                  departments={formData.departments}
+                  onChange={(departments) => setFormData({ ...formData, departments })}
+                />
 
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
                   <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary">

@@ -1,5 +1,5 @@
 # backend/app/schemas/company.py
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import datetime
 
@@ -11,6 +11,7 @@ class CompanyCreate(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     main_activity: Optional[str] = None
+    departments: Optional[list[str]] = Field(default_factory=list)
 
 class CompanyUpdate(BaseModel):
     name: Optional[str] = None
@@ -20,6 +21,7 @@ class CompanyUpdate(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     main_activity: Optional[str] = None
+    departments: Optional[list[str]] = None
 
 class PolicyUpdate(BaseModel):
     policy_text: str
@@ -33,6 +35,7 @@ class CompanyOut(BaseModel):
     address: Optional[str] = None
     phone: Optional[str] = None
     main_activity: Optional[str] = None
+    departments: Optional[list[str]] = Field(default_factory=list)
     active_guide: str  # 'GUIA_I', 'GUIA_II', 'GUIA_III'
     logo_url: Optional[str] = None
     policy_text: Optional[str] = None

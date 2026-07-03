@@ -4,6 +4,8 @@ import { Building, Plus, Search, Edit, Trash2, X, AlertCircle, RefreshCw } from 
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
+import DepartmentsEditor from "../components/DepartmentsEditor";
+import { normalizeDepartments } from "../utils/departments";
 
 export default function SuperadminCompanies() {
   const [companies, setCompanies] = useState([]);
@@ -21,14 +23,11 @@ export default function SuperadminCompanies() {
     sector: "",
     address: "",
     phone: "",
-    main_activity: ""
+    main_activity: "",
+    departments: []
   });
   const [submitLoading, setSubmitLoading] = useState(false);
   const [modalError, setModalError] = useState("");
-
-  useEffect(() => {
-    fetchCompanies();
-  }, []);
 
   const fetchCompanies = async () => {
     setLoading(true);
@@ -44,6 +43,10 @@ export default function SuperadminCompanies() {
     }
   };
 
+  useEffect(() => {
+    fetchCompanies();
+  }, []);
+
   const handleOpenAdd = () => {
     setEditingCompany(null);
     setFormData({
@@ -53,7 +56,8 @@ export default function SuperadminCompanies() {
       sector: "",
       address: "",
       phone: "",
-      main_activity: ""
+      main_activity: "",
+      departments: []
     });
     setModalError("");
     setShowModal(true);
@@ -68,7 +72,8 @@ export default function SuperadminCompanies() {
       sector: company.sector || "",
       address: company.address || "",
       phone: company.phone || "",
-      main_activity: company.main_activity || ""
+      main_activity: company.main_activity || "",
+      departments: normalizeDepartments(company.departments)
     });
     setModalError("");
     setShowModal(true);
@@ -353,6 +358,12 @@ export default function SuperadminCompanies() {
                     onChange={(e) => setFormData({ ...formData, main_activity: e.target.value })}
                   />
                 </div>
+
+                <DepartmentsEditor
+                  inputId="m_departments"
+                  departments={formData.departments}
+                  onChange={(departments) => setFormData({ ...formData, departments })}
+                />
 
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
                   <button type="button" onClick={() => setShowModal(false)} className="btn btn-secondary">
