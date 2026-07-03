@@ -17,6 +17,7 @@ class SurveySessionCreate(BaseModel):
     creador: str
     cedula_creador: str
     clave_secreta: Optional[str] = None
+    consultant_access_enabled: bool = False
 
 class SurveySessionOut(BaseModel):
     id: int
@@ -29,6 +30,7 @@ class SurveySessionOut(BaseModel):
     cedula_creador: Optional[str] = None
     fecha_fin: Optional[datetime.date] = None
     clave_secreta: Optional[str] = None
+    consultant_access_enabled: bool = False
     created_at: datetime.datetime
     response_count: int = 0
 

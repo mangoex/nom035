@@ -70,7 +70,12 @@ def create_survey_session(
         creador=session_in.creador,
         cedula_creador=session_in.cedula_creador,
         fecha_fin=session_in.fecha_fin,
-        clave_secreta=session_in.clave_secreta
+        clave_secreta=session_in.clave_secreta,
+        consultant_access_enabled=(
+            session_in.consultant_access_enabled
+            if session_in.guide_type in ("GUIA_II", "GUIA_III")
+            else False
+        )
     )
     db.add(session)
     db.commit()
@@ -120,7 +125,10 @@ def export_session_results_excel(
     responses = db.query(SurveyResponse).filter(SurveyResponse.survey_session_id == session_id).all()
     if not responses:
         raise HTTPException(status_code=400, detail="No hay respuestas para exportar.")
-        
+
+    return build_session_results_excel(session, responses)
+
+def build_session_results_excel(session: SurveySession, responses: list[SurveyResponse]):
     data = []
     for r in responses:
         row = {
@@ -550,8 +558,10 @@ def filter_responses(responses, age_range, gender, department, position, start_d
         filtered.append(r)
     return filtered
 
-@router.get("/stats")
-def get_survey_statistics(
+def build_survey_statistics(
+    db: Session,
+    company_id: int,
+    active_guide: str,
     age_range: Optional[str] = None,
     gender: Optional[str] = None,
     department: Optional[str] = None,
@@ -559,24 +569,22 @@ def get_survey_statistics(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     survey_session_id: Optional[int] = None,
-    clave: Optional[str] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin)
+    clave: Optional[str] = None
 ):
     # Fetch only filtered responses from DB
     query = get_filtered_responses_query(
-        db, current_user.company_id, age_range, gender, department, position, start_date, end_date, survey_session_id, clave
+        db, company_id, age_range, gender, department, position, start_date, end_date, survey_session_id, clave
     )
     responses = query.all()
     
     # Fetch only demographics column for available filters to avoid overhead
-    demographics_query = db.query(SurveyResponse.demographics).filter(SurveyResponse.company_id == current_user.company_id)
+    demographics_query = db.query(SurveyResponse.demographics).filter(SurveyResponse.company_id == company_id)
     if survey_session_id:
         demographics_query = demographics_query.filter(SurveyResponse.survey_session_id == survey_session_id)
     else:
         # Exclude locked sessions
         locked_session_ids = db.query(SurveySession.id).filter(
-            SurveySession.company_id == current_user.company_id,
+            SurveySession.company_id == company_id,
             SurveySession.guide_type == "GUIA_I",
             SurveySession.clave_secreta != None
         ).all()
@@ -672,7 +680,7 @@ def get_survey_statistics(
 
     from backend.app.core.nom035_engine import get_risk_level, GUIA_II_THRESHOLDS, GUIA_III_THRESHOLDS, GUIA_II_MAPPING, GUIA_III_MAPPING
     
-    guide_type = current_user.company.active_guide if hasattr(current_user, "company") and current_user.company else "GUIA_III"
+    guide_type = active_guide or "GUIA_III"
     thresholds = GUIA_II_THRESHOLDS if guide_type == "GUIA_II" else GUIA_III_THRESHOLDS
     
     category_averages = {
@@ -747,8 +755,8 @@ def get_survey_statistics(
         "dimension_mapping": dimension_mapping
     }
 
-@router.get("/responses")
-def get_survey_responses(
+@router.get("/stats")
+def get_survey_statistics(
     age_range: Optional[str] = None,
     gender: Optional[str] = None,
     department: Optional[str] = None,
@@ -760,8 +768,35 @@ def get_survey_responses(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin)
 ):
+    active_guide = current_user.company.active_guide if hasattr(current_user, "company") and current_user.company else "GUIA_III"
+    return build_survey_statistics(
+        db,
+        current_user.company_id,
+        active_guide,
+        age_range,
+        gender,
+        department,
+        position,
+        start_date,
+        end_date,
+        survey_session_id,
+        clave
+    )
+
+def build_survey_responses(
+    db: Session,
+    company_id: int,
+    age_range: Optional[str] = None,
+    gender: Optional[str] = None,
+    department: Optional[str] = None,
+    position: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    survey_session_id: Optional[int] = None,
+    clave: Optional[str] = None
+):
     query = get_filtered_responses_query(
-        db, current_user.company_id, age_range, gender, department, position, start_date, end_date, survey_session_id, clave
+        db, company_id, age_range, gender, department, position, start_date, end_date, survey_session_id, clave
     )
     # Defer the loading of the massive raw answers column to optimize dashboard load speed
     query = query.options(defer(SurveyResponse.answers))
@@ -783,6 +818,32 @@ def get_survey_responses(
         })
         
     return {"responses": data}
+
+@router.get("/responses")
+def get_survey_responses(
+    age_range: Optional[str] = None,
+    gender: Optional[str] = None,
+    department: Optional[str] = None,
+    position: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    survey_session_id: Optional[int] = None,
+    clave: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin)
+):
+    return build_survey_responses(
+        db,
+        current_user.company_id,
+        age_range,
+        gender,
+        department,
+        position,
+        start_date,
+        end_date,
+        survey_session_id,
+        clave
+    )
 
 from pydantic import BaseModel
 

@@ -208,6 +208,67 @@ def test_consultant_user_management(client, session):
     assert response.status_code == 200
     assert len(response.json()) == 0
 
+def test_consultant_authorized_survey_results(client, session):
+    company = Company(
+        id=321,
+        name="Authorized Client",
+        rfc="AUT123456XYZ",
+        employee_count=25,
+        active_guide="GUIA_II",
+        consultant_id=555
+    )
+    session.add(company)
+    session.commit()
+
+    authorized_session = SurveySession(
+        company_id=321,
+        guide_type="GUIA_II",
+        link_hash="authorizedhash",
+        is_active=True,
+        consultant_access_enabled=True,
+        creador="Psicologa Uno",
+        recopilador="RH",
+        cedula_creador="12345678",
+        fecha_fin=date.today() + timedelta(days=15),
+    )
+    locked_session = SurveySession(
+        company_id=321,
+        guide_type="GUIA_II",
+        link_hash="lockedhash",
+        is_active=True,
+        consultant_access_enabled=False,
+    )
+    session.add_all([authorized_session, locked_session])
+    session.commit()
+
+    response_model = SurveyResponse(
+        company_id=321,
+        survey_session_id=authorized_session.id,
+        demographics={"age_range": "26-35", "gender": "Femenino", "department": "Ventas", "position": "Operativo"},
+        answers={f"q{i}": "Nunca" for i in range(1, 47)},
+        calculated_scores={"final_score": 10, "final_risk": "Bajo", "category_scores": {}, "category_risks": {}, "domain_scores": {}, "domain_risks": {}}
+    )
+    session.add(response_model)
+    session.commit()
+
+    response = client.get("/api/consultant/survey-sessions")
+    assert response.status_code == 200
+    sessions = response.json()
+    assert len(sessions) == 1
+    assert sessions[0]["id"] == authorized_session.id
+    assert sessions[0]["company_name"] == "Authorized Client"
+
+    response = client.get(f"/api/consultant/survey-sessions/{authorized_session.id}/stats")
+    assert response.status_code == 200
+    assert response.json()["total_responses"] == 1
+
+    response = client.get(f"/api/consultant/survey-sessions/{authorized_session.id}/responses")
+    assert response.status_code == 200
+    assert len(response.json()["responses"]) == 1
+
+    response = client.get(f"/api/consultant/survey-sessions/{locked_session.id}/stats")
+    assert response.status_code == 404
+
 def test_user_profile_update(client, session):
     # Test updating current user's profile
     profile_data = {

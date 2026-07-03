@@ -1,5 +1,6 @@
 // frontend/src/pages/ConsultantDashboard.jsx
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { 
   Building, 
   ClipboardList, 
@@ -7,14 +8,18 @@ import {
   AlertCircle, 
   Award, 
   Database,
-  RefreshCw
+  RefreshCw,
+  Eye,
+  Download
 } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
 
 export default function ConsultantDashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -22,8 +27,12 @@ export default function ConsultantDashboard() {
     setLoading(true);
     setError("");
     try {
-      const res = await api.get("/api/consultant/stats");
-      setStats(res.data);
+      const [statsRes, sessionsRes] = await Promise.all([
+        api.get("/api/consultant/stats"),
+        api.get("/api/consultant/survey-sessions")
+      ]);
+      setStats(statsRes.data);
+      setSessions(sessionsRes.data);
     } catch (err) {
       console.error(err);
       setError("No se pudieron cargar las estadísticas del consultor.");
@@ -35,6 +44,35 @@ export default function ConsultantDashboard() {
   useEffect(() => {
     fetchStats();
   }, []);
+
+  const handleDownloadExcel = async (session) => {
+    try {
+      const res = await api.get(`/api/consultant/survey-sessions/${session.id}/export-excel`, {
+        responseType: "blob"
+      });
+      const blob = new Blob([res.data], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `resultados_${session.company_name}_${session.guide_type}_${session.id}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.detail || "No se pudo descargar el archivo Excel.");
+    }
+  };
+
+  const getSessionStatus = (session) => {
+    if (!session.is_active) return { label: "Desactivada", color: "var(--text-muted)" };
+    if (!session.fecha_fin) return { label: "Activa", color: "var(--color-success)" };
+    const today = new Date().setHours(0, 0, 0, 0);
+    const limitDate = new Date(session.fecha_fin).getTime();
+    if (today > limitDate) return { label: "Vencida", color: "var(--color-danger)" };
+    return { label: "Activa", color: "var(--color-success)" };
+  };
 
   if (loading && !stats) {
     return (
@@ -147,13 +185,99 @@ export default function ConsultantDashboard() {
           ))}
         </div>
 
-        {/* Welcome Section */}
-        <div className="glass-card" style={{ padding: "40px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-          <Building size={48} style={{ color: "var(--color-primary)" }} />
-          <h2 style={{ fontSize: "20px", fontWeight: "700" }}>Gestión de Empresas y Encuestas</h2>
-          <p style={{ color: "var(--text-secondary)", fontSize: "14px", maxWidth: "600px", lineHeight: "1.6", margin: 0 }}>
-            Como consultor, puedes dar de alta las empresas de tus clientes desde la pestaña <strong>Empresas</strong>. Cada encuesta respondida por los colaboradores de tus empresas consumirá un crédito de tu saldo disponible.
-          </p>
+        <div className="glass-card" style={{ overflow: "hidden" }}>
+          <div style={{ padding: "20px", borderBottom: "1px solid var(--border-color)" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: "700", margin: 0 }}>Encuestas autorizadas por empresas</h2>
+            <p style={{ color: "var(--text-secondary)", fontSize: "13px", marginTop: "4px", marginBottom: 0 }}>
+              Solo se muestran encuestas Guía II y III autorizadas por la empresa.
+            </p>
+          </div>
+
+          <div className="table-container">
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>Empresa</th>
+                  <th>Tipo Guía</th>
+                  <th>Creador</th>
+                  <th>Vigencia</th>
+                  <th>Respuestas</th>
+                  <th>Estatus</th>
+                  <th style={{ textAlign: "right" }}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessions.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                      Aún no hay encuestas autorizadas para consultar resultados.
+                    </td>
+                  </tr>
+                ) : (
+                  sessions.map((session) => {
+                    const status = getSessionStatus(session);
+                    return (
+                      <tr key={session.id}>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <div style={{ width: "34px", height: "34px", borderRadius: "8px", backgroundColor: "rgba(99, 102, 241, 0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                              <Building size={17} style={{ color: "var(--color-primary)" }} />
+                            </div>
+                            <span style={{ fontWeight: "700", color: "var(--text-primary)" }}>{session.company_name}</span>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`badge ${session.guide_type === 'GUIA_II' ? 'badge-bajo' : 'badge-medio'}`}>
+                            {session.guide_type}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: "600", color: "var(--text-primary)" }}>{session.creador || "No especificado"}</div>
+                          <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>Ced: {session.cedula_creador || "N/A"}</div>
+                        </td>
+                        <td>
+                          <div style={{ fontSize: "13px" }}>Inicio: {new Date(session.created_at).toLocaleDateString()}</div>
+                          <div style={{ fontSize: "13px", color: "var(--text-secondary)" }}>
+                            Fin: {session.fecha_fin ? new Date(session.fecha_fin).toLocaleDateString() : "N/A"}
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: "700", color: "var(--color-primary)" }}>
+                            {session.response_count ?? 0}
+                          </span>
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: "600", color: status.color, fontSize: "13px" }}>
+                            {status.label}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
+                            <button
+                              onClick={() => navigate(`/consultant/results?session_id=${session.id}`)}
+                              className="btn btn-primary"
+                              style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px", alignItems: "center" }}
+                            >
+                              <Eye size={14} />
+                              Ver Resultados
+                            </button>
+                            <button
+                              onClick={() => handleDownloadExcel(session)}
+                              className="btn btn-secondary"
+                              style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px", alignItems: "center" }}
+                            >
+                              <Download size={14} />
+                              Descargar
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
     </div>

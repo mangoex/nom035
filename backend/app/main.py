@@ -128,6 +128,10 @@ try:
             conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN clave_secreta VARCHAR"))
         except Exception:
             pass
+        try:
+            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN consultant_access_enabled BOOLEAN DEFAULT 0 NOT NULL"))
+        except Exception:
+            pass
 
         # Create indexes if they don't exist (works for both SQLite and PostgreSQL)
         try:

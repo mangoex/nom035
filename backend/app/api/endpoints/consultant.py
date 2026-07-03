@@ -2,15 +2,43 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from typing import List
+from typing import List, Optional
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company, SurveySession, SurveyResponse
 from backend.app.schemas.company import CompanyOut, CompanyCreate, CompanyUpdate
 from backend.app.schemas.auth import ConsultantUserCreate, ConsultantUserUpdate
 from backend.app.core.auth import get_current_consultant, get_password_hash
 from backend.app.core.company_utils import normalize_departments
+from backend.app.api.endpoints.survey import (
+    build_session_results_excel,
+    build_survey_responses,
+    build_survey_statistics,
+)
 
 router = APIRouter()
+
+def get_authorized_consultant_session(
+    db: Session,
+    consultant_id: int,
+    session_id: int
+):
+    session = (
+        db.query(SurveySession)
+        .join(Company, SurveySession.company_id == Company.id)
+        .filter(
+            SurveySession.id == session_id,
+            SurveySession.consultant_access_enabled == True,
+            SurveySession.guide_type.in_(["GUIA_II", "GUIA_III"]),
+            Company.consultant_id == consultant_id,
+        )
+        .first()
+    )
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Encuesta no encontrada o sin autorizacion para consultoria."
+        )
+    return session
 
 @router.get("/stats")
 def get_consultant_stats(
@@ -50,6 +78,139 @@ def get_consultant_stats(
         "creditos_totales": creditos_totales,
         "creditos_disponibles": creditos_disponibles
     }
+
+@router.get("/survey-sessions")
+def get_authorized_survey_sessions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant)
+):
+    sessions = (
+        db.query(SurveySession, Company)
+        .join(Company, SurveySession.company_id == Company.id)
+        .filter(
+            Company.consultant_id == current_user.id,
+            SurveySession.consultant_access_enabled == True,
+            SurveySession.guide_type.in_(["GUIA_II", "GUIA_III"]),
+        )
+        .order_by(SurveySession.created_at.desc())
+        .all()
+    )
+
+    return [
+        {
+            "id": session.id,
+            "company_id": company.id,
+            "company_name": company.name,
+            "guide_type": session.guide_type,
+            "is_active": session.is_active,
+            "recopilador": session.recopilador,
+            "creador": session.creador,
+            "cedula_creador": session.cedula_creador,
+            "fecha_fin": session.fecha_fin,
+            "created_at": session.created_at,
+            "response_count": session.response_count,
+        }
+        for session, company in sessions
+    ]
+
+@router.get("/survey-sessions/{session_id}/context")
+def get_authorized_survey_context(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant)
+):
+    session = get_authorized_consultant_session(db, current_user.id, session_id)
+    company = db.query(Company).filter(Company.id == session.company_id).first()
+    return {
+        "session": {
+            "id": session.id,
+            "guide_type": session.guide_type,
+            "response_count": session.response_count,
+            "created_at": session.created_at,
+            "fecha_fin": session.fecha_fin,
+        },
+        "company": {
+            "id": company.id,
+            "name": company.name,
+            "rfc": company.rfc,
+            "employee_count": company.employee_count,
+            "sector": company.sector,
+            "address": company.address,
+            "phone": company.phone,
+            "main_activity": company.main_activity,
+            "departments": company.departments or [],
+            "active_guide": company.active_guide,
+            "logo_url": company.logo_url,
+            "consultant_id": company.consultant_id,
+            "created_at": company.created_at,
+        }
+    }
+
+@router.get("/survey-sessions/{session_id}/stats")
+def get_authorized_survey_statistics(
+    session_id: int,
+    age_range: Optional[str] = None,
+    gender: Optional[str] = None,
+    department: Optional[str] = None,
+    position: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant)
+):
+    session = get_authorized_consultant_session(db, current_user.id, session_id)
+    company = db.query(Company).filter(Company.id == session.company_id).first()
+    return build_survey_statistics(
+        db,
+        company.id,
+        company.active_guide,
+        age_range,
+        gender,
+        department,
+        position,
+        start_date,
+        end_date,
+        session.id,
+        None
+    )
+
+@router.get("/survey-sessions/{session_id}/responses")
+def get_authorized_survey_responses(
+    session_id: int,
+    age_range: Optional[str] = None,
+    gender: Optional[str] = None,
+    department: Optional[str] = None,
+    position: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant)
+):
+    session = get_authorized_consultant_session(db, current_user.id, session_id)
+    return build_survey_responses(
+        db,
+        session.company_id,
+        age_range,
+        gender,
+        department,
+        position,
+        start_date,
+        end_date,
+        session.id,
+        None
+    )
+
+@router.get("/survey-sessions/{session_id}/export-excel")
+def export_authorized_survey_results_excel(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant)
+):
+    session = get_authorized_consultant_session(db, current_user.id, session_id)
+    responses = db.query(SurveyResponse).filter(SurveyResponse.survey_session_id == session.id).all()
+    if not responses:
+        raise HTTPException(status_code=400, detail="No hay respuestas para exportar.")
+    return build_session_results_excel(session, responses)
 
 @router.get("/companies", response_model=List[CompanyOut])
 def get_consultant_companies(

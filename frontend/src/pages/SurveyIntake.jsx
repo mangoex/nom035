@@ -18,7 +18,8 @@ import {
   Search,
   RefreshCw,
   Eye,
-  X
+  X,
+  ShieldCheck
 } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
@@ -46,7 +47,8 @@ export default function SurveyIntake() {
     fecha_fin: "",
     creador: "",
     cedula_creador: "",
-    clave_secreta: ""
+    clave_secreta: "",
+    consultant_access_enabled: false
   });
 
   // CSV upload state
@@ -99,7 +101,8 @@ export default function SurveyIntake() {
       fecha_fin: defaultDateStr,
       creador: "",
       cedula_creador: "",
-      clave_secreta: ""
+      clave_secreta: "",
+      consultant_access_enabled: false
     });
     setModalError("");
     setShowModal(true);
@@ -451,6 +454,7 @@ export default function SurveyIntake() {
                   <th>Recopilador</th>
                   <th>Vigencia</th>
                   <th>Respuestas</th>
+                  <th>Consultor</th>
                   <th>Estatus</th>
                   <th style={{ textAlign: "right" }}>Acciones</th>
                 </tr>
@@ -458,7 +462,7 @@ export default function SurveyIntake() {
               <tbody>
                 {sessions.length === 0 ? (
                   <tr>
-                    <td colSpan="7" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                    <td colSpan="8" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
                       No se encontraron encuestas creadas en este periodo.
                     </td>
                   </tr>
@@ -488,6 +492,16 @@ export default function SurveyIntake() {
                           <span style={{ fontWeight: "700", color: "var(--color-primary)" }}>
                             {s.response_count ?? 0}
                           </span>
+                        </td>
+                        <td>
+                          {s.consultant_access_enabled ? (
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "var(--color-success)", fontSize: "12px", fontWeight: "700" }}>
+                              <ShieldCheck size={14} />
+                              Autorizado
+                            </span>
+                          ) : (
+                            <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>Sin acceso</span>
+                          )}
                         </td>
                         <td>
                           <span style={{ fontWeight: "600", color: status.color, fontSize: "13px" }}>
@@ -582,7 +596,11 @@ export default function SurveyIntake() {
                   <select
                     className="form-input"
                     value={formData.guide_type}
-                    onChange={(e) => setFormData({ ...formData, guide_type: e.target.value })}
+                    onChange={(e) => setFormData({
+                      ...formData,
+                      guide_type: e.target.value,
+                      consultant_access_enabled: e.target.value === "GUIA_I" ? false : formData.consultant_access_enabled
+                    })}
                   >
                     <option value="GUIA_I">Guía I (Acontecimientos Traumáticos)</option>
                     {company?.active_guide === "GUIA_III" ? (
@@ -680,6 +698,37 @@ export default function SurveyIntake() {
                       />
                     </div>
                   </div>
+                )}
+
+                {formData.guide_type !== "GUIA_I" && (
+                  <label
+                    style={{
+                      display: "flex",
+                      gap: "12px",
+                      alignItems: "flex-start",
+                      padding: "12px",
+                      borderRadius: "var(--radius-sm)",
+                      border: "1px solid var(--border-color)",
+                      backgroundColor: "var(--bg-secondary)",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={formData.consultant_access_enabled}
+                      onChange={(e) => setFormData({ ...formData, consultant_access_enabled: e.target.checked })}
+                      style={{ marginTop: "4px" }}
+                    />
+                    <span style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <span style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>
+                        <ShieldCheck size={16} style={{ color: "var(--color-primary)" }} />
+                        Autorizar acceso al consultor
+                      </span>
+                      <span style={{ fontSize: "12px", color: "var(--text-secondary)", lineHeight: "1.45" }}>
+                        Permite que el consultor asignado vea resultados y descargue datos de esta encuesta desde su panel.
+                      </span>
+                    </span>
+                  </label>
                 )}
 
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>

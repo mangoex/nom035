@@ -1,6 +1,6 @@
 // frontend/src/pages/Dashboard.jsx
 import React, { useEffect, useState, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { generateNom035Report } from "../utils/pdfGenerator";
 import { 
   Users, 
@@ -61,7 +61,8 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-export default function Dashboard() {
+export default function Dashboard({ consultantMode = false }) {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const sessionKey = sessionId ? sessionStorage.getItem(`session_key_${sessionId}`) : null;
@@ -114,6 +115,12 @@ export default function Dashboard() {
     setError("");
     setIsAccessDenied(false);
     try {
+      if (consultantMode && !sessionId) {
+        setError("Selecciona una encuesta autorizada desde el panel de consultoria.");
+        setLoading(false);
+        return;
+      }
+
       // Build query string
       const params = new URLSearchParams();
       if (filters.age_range) params.append("age_range", filters.age_range);
@@ -133,18 +140,31 @@ export default function Dashboard() {
       const qs = params.toString();
       const query = qs ? `?${qs}` : "";
 
-      const [compRes, statsRes, respRes, tasksRes, suggRes] = await Promise.all([
-        api.get("/api/company/me"),
-        api.get(`/api/survey/stats${query}`),
-        api.get(`/api/survey/responses${query}`),
-        api.get("/api/action_plan/tasks"),
-        api.get("/api/action_plan/suggested")
-      ]);
-      setCompany(compRes.data);
-      setStats(statsRes.data);
-      setResponses(respRes.data.responses);
-      setTasks(tasksRes.data);
-      setSuggestions(suggRes.data.suggestions || []);
+      if (consultantMode) {
+        const [contextRes, statsRes, respRes] = await Promise.all([
+          api.get(`/api/consultant/survey-sessions/${sessionId}/context`),
+          api.get(`/api/consultant/survey-sessions/${sessionId}/stats${query}`),
+          api.get(`/api/consultant/survey-sessions/${sessionId}/responses${query}`)
+        ]);
+        setCompany(contextRes.data.company);
+        setStats(statsRes.data);
+        setResponses(respRes.data.responses);
+        setTasks([]);
+        setSuggestions([]);
+      } else {
+        const [compRes, statsRes, respRes, tasksRes, suggRes] = await Promise.all([
+          api.get("/api/company/me"),
+          api.get(`/api/survey/stats${query}`),
+          api.get(`/api/survey/responses${query}`),
+          api.get("/api/action_plan/tasks"),
+          api.get("/api/action_plan/suggested")
+        ]);
+        setCompany(compRes.data);
+        setStats(statsRes.data);
+        setResponses(respRes.data.responses);
+        setTasks(tasksRes.data);
+        setSuggestions(suggRes.data.suggestions || []);
+      }
     } catch (err) {
       console.error(err);
       if (err.response?.status === 403) {
@@ -206,7 +226,7 @@ export default function Dashboard() {
   if (isAccessDenied) {
     return (
       <div className="app-container">
-        <Sidebar company={company} />
+        <Sidebar company={consultantMode ? undefined : company} />
         <main className="main-content" style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "80vh" }}>
           <div className="glass-card animate-slide-up" style={{ maxWidth: "480px", width: "100%", padding: "40px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: "20px" }}>
             <div style={{
@@ -239,12 +259,12 @@ export default function Dashboard() {
               </button>
               <button 
                 onClick={() => {
-                  window.location.href = "/intake";
+                  window.location.href = consultantMode ? "/consultant/dashboard" : "/intake";
                 }} 
                 className="btn btn-primary" 
                 style={{ flex: 1, padding: "12px" }}
               >
-                Ir a Captura
+                {consultantMode ? "Volver al Panel" : "Ir a Captura"}
               </button>
             </div>
           </div>
@@ -286,7 +306,7 @@ export default function Dashboard() {
 
   return (
     <div className="app-container">
-      <Sidebar company={company} />
+      <Sidebar company={consultantMode ? undefined : company} />
       
       <main className="main-content">
         {/* Header */}
@@ -324,12 +344,16 @@ export default function Dashboard() {
             </div>
             <button
               onClick={() => {
-                setSearchParams({});
+                if (consultantMode) {
+                  navigate("/consultant/dashboard");
+                } else {
+                  setSearchParams({});
+                }
               }}
               className="btn btn-secondary"
               style={{ padding: "6px 12px", fontSize: "12px" }}
             >
-              Ver todos los resultados (Quitar Filtro)
+              {consultantMode ? "Volver al panel del consultor" : "Ver todos los resultados (Quitar Filtro)"}
             </button>
           </div>
         )}
@@ -595,7 +619,7 @@ export default function Dashboard() {
                   <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Detalle de Encuestas ({responses.length})</h3>
                   <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>Mostrando respuestas individuales anonimizadas según la NOM-035.</p>
                 </div>
-                {selectedRows.length > 0 && (
+                {!consultantMode && selectedRows.length > 0 && (
                   <button 
                     onClick={handleDeleteSelected}
                     className="btn btn-primary"
@@ -609,13 +633,15 @@ export default function Dashboard() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
                   <thead style={{ backgroundColor: "rgba(99, 102, 241, 0.05)" }}>
                     <tr>
-                      <th style={{ padding: "12px 20px", width: "40px" }}>
-                        <input 
-                          type="checkbox" 
-                          checked={selectedRows.length === responses.length && responses.length > 0} 
-                          onChange={handleSelectAll} 
-                        />
-                      </th>
+                      {!consultantMode && (
+                        <th style={{ padding: "12px 20px", width: "40px" }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedRows.length === responses.length && responses.length > 0}
+                            onChange={handleSelectAll}
+                          />
+                        </th>
+                      )}
                       <th style={{ padding: "12px 20px", textAlign: "left", color: "var(--text-secondary)", fontWeight: "600" }}>ID</th>
                       <th style={{ padding: "12px 20px", textAlign: "left", color: "var(--text-secondary)", fontWeight: "600" }}>Fecha</th>
                       <th style={{ padding: "12px 20px", textAlign: "left", color: "var(--text-secondary)", fontWeight: "600" }}>Edad / Género</th>
@@ -627,13 +653,15 @@ export default function Dashboard() {
                   <tbody>
                     {responses.map((r, i) => (
                       <tr key={r.id} style={{ borderBottom: "1px solid var(--border-color)", backgroundColor: selectedRows.includes(r.id) ? "rgba(239, 68, 68, 0.05)" : (i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)") }}>
-                        <td style={{ padding: "14px 20px" }}>
-                          <input 
-                            type="checkbox" 
-                            checked={selectedRows.includes(r.id)} 
-                            onChange={() => handleSelectRow(r.id)} 
-                          />
-                        </td>
+                        {!consultantMode && (
+                          <td style={{ padding: "14px 20px" }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedRows.includes(r.id)}
+                              onChange={() => handleSelectRow(r.id)}
+                            />
+                          </td>
+                        )}
                         <td style={{ padding: "14px 20px", color: "var(--text-secondary)" }}>#{r.id}</td>
                         <td style={{ padding: "14px 20px" }}>{new Date(r.created_at).toLocaleDateString()}</td>
                         <td style={{ padding: "14px 20px" }}>{r.demographics.age_range} • {r.demographics.gender}</td>

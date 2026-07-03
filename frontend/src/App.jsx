@@ -142,6 +142,14 @@ export default function App() {
             </ConsultantRoute>
           } 
         />
+        <Route
+          path="/consultant/results"
+          element={
+            <ConsultantRoute>
+              <Dashboard consultantMode />
+            </ConsultantRoute>
+          }
+        />
 
         {/* Protected Admin Dashboard Paths */}
         <Route 

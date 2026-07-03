@@ -70,6 +70,7 @@ class SurveySession(Base):
     cedula_creador = Column(String, nullable=True)
     fecha_fin = Column(Date, nullable=True)
     clave_secreta = Column(String, nullable=True)
+    consultant_access_enabled = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
