@@ -137,8 +137,37 @@ def test_consultant_management_flow(client):
     assert updated_consultant["name"] == "Mtro. Juan Pérez"
     assert updated_consultant["cedula_profesional"] == "87654321"
     assert updated_consultant["creditos"] == 150
+    assert updated_consultant["is_active"] is True
 
-    # 4. Delete consultant
+    # 4. Deactivate consultant access
+    response = client.put(
+        f"/api/superadmin/consultants/{created_consultant['id']}",
+        json={"is_active": False}
+    )
+    assert response.status_code == 200
+    assert response.json()["is_active"] is False
+
+    # 5. Update consultant billing
+    billing_data = {
+        "billing_paid": True,
+        "billing_due_date": "2026-08-31",
+        "billing_amount": 2500,
+        "billing_history": [
+            {"date": "2026-07-01", "amount": 2500, "note": "Pago mensual"}
+        ]
+    }
+    response = client.put(
+        f"/api/superadmin/consultants/{created_consultant['id']}/billing",
+        json=billing_data
+    )
+    assert response.status_code == 200
+    billing_consultant = response.json()
+    assert billing_consultant["billing_paid"] is True
+    assert billing_consultant["billing_due_date"] == "2026-08-31"
+    assert billing_consultant["billing_amount"] == 2500
+    assert billing_consultant["billing_history"][0]["amount"] == 2500
+
+    # 6. Delete consultant
     response = client.delete(f"/api/superadmin/consultants/{created_consultant['id']}")
     assert response.status_code == 200
     assert response.json()["message"] == "Consultor eliminado exitosamente."

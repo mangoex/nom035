@@ -51,6 +51,11 @@ class User(Base):
     creditos = Column(Integer, default=0, nullable=True)
     logo_url = Column(String, nullable=True)
     capacitaciones = Column(JSON, nullable=True) # Array of {codigo, nombre, horas}
+    is_active = Column(Boolean, default=True, nullable=False)
+    billing_paid = Column(Boolean, default=False, nullable=False)
+    billing_due_date = Column(Date, nullable=True)
+    billing_amount = Column(Integer, default=0, nullable=True)
+    billing_history = Column(JSON, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships

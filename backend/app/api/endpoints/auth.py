@@ -87,6 +87,11 @@ def login(user_in: UserLogin, response: Response, request: Request, db: Session 
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Correo electrónico o contraseña incorrectos."
         )
+    if user.role == "consultor" and not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tu acceso de consultor está desactivado. Contacta al administrador."
+        )
 
     # Generate token and set HttpOnly Cookie
     access_token = create_access_token(data={"sub": user.email})

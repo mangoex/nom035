@@ -1,6 +1,6 @@
 // frontend/src/pages/SuperadminConsultants.jsx
 import React, { useEffect, useState } from "react";
-import { Users, Plus, Search, Edit, Trash2, X, AlertCircle, RefreshCw, Award, Database } from "lucide-react";
+import { Users, Plus, Search, Edit, Trash2, X, AlertCircle, RefreshCw, Award, Database, CreditCard, CheckCircle2, XCircle } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
@@ -26,6 +26,15 @@ export default function SuperadminConsultants() {
   const [profileCedulaImage, setProfileCedulaImage] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [modalError, setModalError] = useState("");
+  const [billingConsultant, setBillingConsultant] = useState(null);
+  const [billingData, setBillingData] = useState({
+    billing_paid: false,
+    billing_due_date: "",
+    billing_amount: 0,
+    billing_history: []
+  });
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingError, setBillingError] = useState("");
 
   const fetchConsultants = async () => {
     setLoading(true);
@@ -87,6 +96,81 @@ export default function SuperadminConsultants() {
     } catch (err) {
       console.error(err);
       alert("Error al intentar eliminar el consultor.");
+    }
+  };
+
+  const handleToggleActive = async (consultant) => {
+    const nextActive = !consultant.is_active;
+    setConsultants(consultants.map(c => c.id === consultant.id ? { ...c, is_active: nextActive } : c));
+    try {
+      const res = await api.put(`/api/superadmin/consultants/${consultant.id}`, { is_active: nextActive });
+      setConsultants(prev => prev.map(c => c.id === consultant.id ? res.data : c));
+    } catch (err) {
+      console.error(err);
+      setConsultants(prev => prev.map(c => c.id === consultant.id ? { ...c, is_active: consultant.is_active } : c));
+      alert(err.response?.data?.detail || "No se pudo actualizar el acceso del consultor.");
+    }
+  };
+
+  const handleOpenBilling = (consultant) => {
+    setBillingConsultant(consultant);
+    setBillingData({
+      billing_paid: Boolean(consultant.billing_paid),
+      billing_due_date: consultant.billing_due_date || "",
+      billing_amount: consultant.billing_amount || 0,
+      billing_history: consultant.billing_history || []
+    });
+    setBillingError("");
+  };
+
+  const handleAddPayment = () => {
+    const today = new Date().toISOString().slice(0, 10);
+    setBillingData({
+      ...billingData,
+      billing_history: [
+        ...billingData.billing_history,
+        { date: today, amount: billingData.billing_amount || 0, note: "" }
+      ]
+    });
+  };
+
+  const handleUpdatePayment = (index, field, value) => {
+    const nextHistory = [...billingData.billing_history];
+    nextHistory[index] = { ...nextHistory[index], [field]: value };
+    setBillingData({ ...billingData, billing_history: nextHistory });
+  };
+
+  const handleRemovePayment = (index) => {
+    setBillingData({
+      ...billingData,
+      billing_history: billingData.billing_history.filter((_, i) => i !== index)
+    });
+  };
+
+  const handleBillingSubmit = async (e) => {
+    e.preventDefault();
+    if (!billingConsultant) return;
+    setBillingLoading(true);
+    setBillingError("");
+    try {
+      const payload = {
+        billing_paid: billingData.billing_paid,
+        billing_due_date: billingData.billing_due_date || null,
+        billing_amount: parseInt(billingData.billing_amount) || 0,
+        billing_history: billingData.billing_history.map((payment) => ({
+          date: payment.date,
+          amount: parseInt(payment.amount) || 0,
+          note: payment.note || ""
+        }))
+      };
+      const res = await api.put(`/api/superadmin/consultants/${billingConsultant.id}/billing`, payload);
+      setConsultants(consultants.map(c => c.id === billingConsultant.id ? res.data : c));
+      setBillingConsultant(null);
+    } catch (err) {
+      console.error(err);
+      setBillingError(err.response?.data?.detail || "No se pudo guardar la información de billing.");
+    } finally {
+      setBillingLoading(false);
     }
   };
 
@@ -242,6 +326,8 @@ export default function SuperadminConsultants() {
                     <th>Correo Electrónico</th>
                     <th>Cédula Profesional</th>
                     <th>Créditos del Sistema</th>
+                    <th>Acceso</th>
+                    <th>Billing</th>
                     <th>Fecha Alta</th>
                     <th style={{ textAlign: "right" }}>Acciones</th>
                   </tr>
@@ -249,7 +335,7 @@ export default function SuperadminConsultants() {
                 <tbody>
                   {filteredConsultants.length === 0 ? (
                     <tr>
-                      <td colSpan="6" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                      <td colSpan="8" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
                         No se encontraron consultores registrados.
                       </td>
                     </tr>
@@ -270,24 +356,73 @@ export default function SuperadminConsultants() {
                             {c.creditos ?? 0}
                           </span>
                         </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleActive(c)}
+                            title={c.is_active ? "Desactivar consultor" : "Activar consultor"}
+                            aria-label={c.is_active ? "Desactivar consultor" : "Activar consultor"}
+                            style={{
+                              width: "44px",
+                              height: "24px",
+                              borderRadius: "999px",
+                              border: "none",
+                              backgroundColor: c.is_active ? "var(--color-success)" : "var(--border-color)",
+                              cursor: "pointer",
+                              position: "relative",
+                              transition: "all 0.2s ease"
+                            }}
+                          >
+                            <span
+                              style={{
+                                position: "absolute",
+                                top: "3px",
+                                left: c.is_active ? "23px" : "3px",
+                                width: "18px",
+                                height: "18px",
+                                borderRadius: "50%",
+                                backgroundColor: "#ffffff",
+                                transition: "all 0.2s ease",
+                                boxShadow: "0 1px 3px rgba(15, 23, 42, 0.25)"
+                              }}
+                            />
+                          </button>
+                        </td>
+                        <td>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "12px", fontWeight: "700", color: c.billing_paid ? "var(--color-success)" : "var(--color-danger)" }}>
+                            {c.billing_paid ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
+                            {c.billing_paid ? "Pagado" : "Pendiente"}
+                          </span>
+                        </td>
                         <td>{new Date(c.created_at).toLocaleDateString()}</td>
                         <td style={{ textAlign: "right" }}>
-                          <div style={{ display: "inline-flex", gap: "8px" }}>
+                          <div style={{ display: "inline-flex", gap: "8px", alignItems: "center" }}>
+                            <button
+                              onClick={() => handleOpenBilling(c)}
+                              className="btn btn-secondary"
+                              title="Billing"
+                              aria-label="Billing"
+                              style={{ padding: "7px", width: "32px", height: "32px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                            >
+                              <CreditCard size={15} />
+                            </button>
                             <button
                               onClick={() => handleOpenEdit(c)}
                               className="btn btn-secondary"
-                              style={{ padding: "6px 12px", fontSize: "12px" }}
+                              title="Editar"
+                              aria-label="Editar"
+                              style={{ padding: "7px", width: "32px", height: "32px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                             >
                               <Edit size={14} />
-                              Editar
                             </button>
                             <button
                               onClick={() => handleDelete(c.id, c.name)}
                               className="btn btn-danger"
-                              style={{ padding: "6px 12px", fontSize: "12px" }}
+                              title="Eliminar"
+                              aria-label="Eliminar"
+                              style={{ padding: "7px", width: "32px", height: "32px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                             >
                               <Trash2 size={14} />
-                              Eliminar
                             </button>
                           </div>
                         </td>
@@ -511,6 +646,156 @@ export default function SuperadminConsultants() {
                   </button>
                   <button type="submit" disabled={submitLoading} className="btn btn-primary">
                     {submitLoading ? "Guardando..." : "Guardar Consultor"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+        {billingConsultant && (
+          <div style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(15, 23, 42, 0.45)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px"
+          }}>
+            <div className="glass-card animate-slide-up" style={{ width: "100%", maxWidth: "620px", position: "relative", maxHeight: "90vh", overflowY: "auto" }}>
+              <button
+                onClick={() => setBillingConsultant(null)}
+                style={{ position: "absolute", top: "20px", right: "20px", background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}
+                aria-label="Cerrar"
+              >
+                <X size={20} />
+              </button>
+
+              <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "6px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+                <CreditCard size={20} style={{ color: "var(--color-primary)" }} />
+                Billing
+              </h2>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "18px" }}>
+                {billingConsultant.name}
+              </p>
+
+              {billingError && (
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px", borderRadius: "var(--radius-sm)", backgroundColor: "var(--color-danger-bg)", color: "var(--color-danger)", fontSize: "13px", fontWeight: "500", marginBottom: "16px" }}>
+                  <AlertCircle size={16} />
+                  <span>{billingError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleBillingSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "12px",
+                    borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border-color)",
+                    backgroundColor: "var(--bg-secondary)",
+                    cursor: "pointer"
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={billingData.billing_paid}
+                    onChange={(e) => setBillingData({ ...billingData, billing_paid: e.target.checked })}
+                  />
+                  <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>
+                    Consultor pagado
+                  </span>
+                </label>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="billing_due_date">Fecha de vencimiento</label>
+                    <input
+                      id="billing_due_date"
+                      type="date"
+                      className="form-input"
+                      value={billingData.billing_due_date || ""}
+                      onChange={(e) => setBillingData({ ...billingData, billing_due_date: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="billing_amount">Cantidad de pago</label>
+                    <input
+                      id="billing_amount"
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      value={billingData.billing_amount}
+                      onChange={(e) => setBillingData({ ...billingData, billing_amount: parseInt(e.target.value) || 0 })}
+                    />
+                  </div>
+                </div>
+
+                <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "14px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <h3 style={{ fontSize: "14px", fontWeight: "700", margin: 0 }}>Historial de pagos</h3>
+                    <button type="button" onClick={handleAddPayment} className="btn btn-secondary" style={{ padding: "6px 10px", fontSize: "12px" }}>
+                      <Plus size={14} />
+                      Agregar pago
+                    </button>
+                  </div>
+
+                  {billingData.billing_history.length === 0 ? (
+                    <p style={{ padding: "18px", borderRadius: "var(--radius-sm)", border: "1px dashed var(--border-color)", color: "var(--text-muted)", textAlign: "center", fontSize: "13px" }}>
+                      No hay pagos registrados.
+                    </p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {billingData.billing_history.map((payment, index) => (
+                        <div key={index} style={{ display: "grid", gridTemplateColumns: "140px 120px 1fr 36px", gap: "8px", alignItems: "center" }}>
+                          <input
+                            type="date"
+                            required
+                            className="form-input"
+                            value={payment.date || ""}
+                            onChange={(e) => handleUpdatePayment(index, "date", e.target.value)}
+                          />
+                          <input
+                            type="number"
+                            required
+                            min="0"
+                            className="form-input"
+                            value={payment.amount || 0}
+                            onChange={(e) => handleUpdatePayment(index, "amount", parseInt(e.target.value) || 0)}
+                          />
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="Nota"
+                            value={payment.note || ""}
+                            onChange={(e) => handleUpdatePayment(index, "note", e.target.value)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemovePayment(index)}
+                            className="btn btn-danger"
+                            title="Eliminar pago"
+                            aria-label="Eliminar pago"
+                            style={{ width: "34px", height: "34px", padding: "6px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+                  <button type="button" onClick={() => setBillingConsultant(null)} className="btn btn-secondary">
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={billingLoading} className="btn btn-primary">
+                    {billingLoading ? "Guardando..." : "Guardar Billing"}
                   </button>
                 </div>
               </form>

@@ -8,7 +8,7 @@ from typing import List
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company
 from backend.app.schemas.company import CompanyOut, CompanyCreate, CompanyUpdate
-from backend.app.schemas.superadmin import ConsultantCreate, ConsultantUpdate, ConsultantOut
+from backend.app.schemas.superadmin import ConsultantBillingUpdate, ConsultantCreate, ConsultantUpdate, ConsultantOut
 from backend.app.core.auth import get_current_superadmin, get_password_hash
 from backend.app.core.company_utils import normalize_departments
 
@@ -145,6 +145,7 @@ def create_consultant(
         cedula_profesional=consultant_in.cedula_profesional,
         creditos=consultant_in.creditos,
         capacitaciones=[t.dict() for t in consultant_in.capacitaciones] if consultant_in.capacitaciones else [],
+        is_active=consultant_in.is_active if consultant_in.is_active is not None else True,
         company_id=None
     )
     db.add(user)
@@ -186,6 +187,31 @@ def update_consultant(
         user.creditos = consultant_in.creditos
     if consultant_in.capacitaciones is not None:
         user.capacitaciones = [t.dict() for t in consultant_in.capacitaciones]
+    if consultant_in.is_active is not None:
+        user.is_active = consultant_in.is_active
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+@router.put("/consultants/{user_id}/billing", response_model=ConsultantOut)
+def update_consultant_billing(
+    user_id: int,
+    billing_in: ConsultantBillingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    user = db.query(User).filter(User.id == user_id, User.role == "consultor").first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Consultor no encontrado."
+        )
+
+    user.billing_paid = billing_in.billing_paid
+    user.billing_due_date = billing_in.billing_due_date
+    user.billing_amount = billing_in.billing_amount or 0
+    user.billing_history = [p.model_dump(mode="json") for p in billing_in.billing_history] if billing_in.billing_history else []
 
     db.commit()
     db.refresh(user)

@@ -76,6 +76,28 @@ try:
         except Exception:
             pass
 
+        # Add active/billing columns for consultant access control
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1 NOT NULL"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN billing_paid BOOLEAN DEFAULT 0 NOT NULL"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN billing_due_date DATE"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN billing_amount INTEGER DEFAULT 0"))
+        except Exception:
+            pass
+        try:
+            conn.execute(text("ALTER TABLE users ADD COLUMN billing_history JSON"))
+        except Exception:
+            pass
+
 
         # Add capacitaciones to users column if it doesn't exist
         try:

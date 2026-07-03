@@ -16,6 +16,7 @@ class ConsultantCreate(BaseModel):
     cedula_profesional: Optional[str] = None
     creditos: Optional[int] = 0
     capacitaciones: Optional[List[TrainingItem]] = []
+    is_active: Optional[bool] = True
 
 class ConsultantUpdate(BaseModel):
     name: Optional[str] = None
@@ -24,6 +25,18 @@ class ConsultantUpdate(BaseModel):
     cedula_profesional: Optional[str] = None
     creditos: Optional[int] = None
     capacitaciones: Optional[List[TrainingItem]] = None
+    is_active: Optional[bool] = None
+
+class PaymentHistoryItem(BaseModel):
+    date: datetime.date
+    amount: int
+    note: Optional[str] = None
+
+class ConsultantBillingUpdate(BaseModel):
+    billing_paid: bool = False
+    billing_due_date: Optional[datetime.date] = None
+    billing_amount: Optional[int] = 0
+    billing_history: Optional[List[PaymentHistoryItem]] = []
 
 class ConsultantOut(BaseModel):
     id: int
@@ -35,6 +48,11 @@ class ConsultantOut(BaseModel):
     creditos: Optional[int] = 0
     logo_url: Optional[str] = None
     capacitaciones: Optional[List[TrainingItem]] = []
+    is_active: bool = True
+    billing_paid: bool = False
+    billing_due_date: Optional[datetime.date] = None
+    billing_amount: Optional[int] = 0
+    billing_history: Optional[List[PaymentHistoryItem]] = []
     created_at: datetime.datetime
 
     class Config:
