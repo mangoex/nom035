@@ -15,6 +15,7 @@ import ConsultantDashboard from "./pages/ConsultantDashboard";
 import ConsultantCompanies from "./pages/ConsultantCompanies";
 import ConsultantUsers from "./pages/ConsultantUsers";
 import CompanyTrainings from "./pages/CompanyTrainings";
+import PrivacyNotice from "./pages/PrivacyNotice";
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -95,6 +96,7 @@ export default function App() {
             </PublicRoute>
           } 
         />
+        <Route path="/aviso-de-privacidad" element={<PrivacyNotice />} />
 
         {/* Public Survey Path */}
         <Route path="/survey/public/:linkHash" element={<SurveyPublic />} />

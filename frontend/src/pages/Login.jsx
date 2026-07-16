@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Building, Lock, Mail, AlertCircle } from "lucide-react";
 import api from "../utils/api";
 import ThemeToggle from "../components/ThemeToggle";
+import AuthPrivacyLink from "../components/AuthPrivacyLink";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -39,7 +40,9 @@ export default function Login() {
       alignItems: "center",
       justifyContent: "center",
       background: "linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)",
-      padding: "20px"
+      padding: "20px",
+      flexDirection: "column",
+      gap: "18px"
     }}>
       <div style={{ position: "absolute", top: "20px", right: "20px" }}>
         <ThemeToggle />
@@ -129,6 +132,7 @@ export default function Login() {
           </Link>
         </div>
       </div>
+      <AuthPrivacyLink />
     </div>
   );
 }

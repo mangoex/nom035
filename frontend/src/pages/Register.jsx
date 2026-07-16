@@ -4,6 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { Building, Lock, Mail, User, ShieldCheck, HelpCircle, AlertCircle } from "lucide-react";
 import api from "../utils/api";
 import ThemeToggle from "../components/ThemeToggle";
+import AuthPrivacyLink from "../components/AuthPrivacyLink";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -64,7 +65,9 @@ export default function Register() {
       alignItems: "center",
       justifyContent: "center",
       background: "linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%)",
-      padding: "40px 20px"
+      padding: "40px 20px",
+      flexDirection: "column",
+      gap: "18px"
     }}>
       <div style={{ position: "absolute", top: "20px", right: "20px" }}>
         <ThemeToggle />
@@ -254,6 +257,7 @@ export default function Register() {
           </Link>
         </div>
       </div>
+      <AuthPrivacyLink />
     </div>
   );
 }
