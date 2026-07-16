@@ -17,6 +17,21 @@ const LIKERT_OPTIONS = [
 
 const BINARY_OPTIONS = ["Sí", "No"];
 
+const GUIDE_TITLES = {
+  GUIA_I: {
+    label: "Guía I",
+    title: "Acontecimientos traumáticos severos"
+  },
+  GUIA_II: {
+    label: "Guía II",
+    title: "Factores de riesgo psicosocial"
+  },
+  GUIA_III: {
+    label: "Guía III",
+    title: "Factores de riesgo psicosocial y entorno organizacional"
+  }
+};
+
 export default function SurveyPublic() {
   const { linkHash } = useParams();
   const [loading, setLoading] = useState(true);
@@ -104,6 +119,10 @@ export default function SurveyPublic() {
   }
 
   const { company_name, guide_type } = companyDetails;
+  const guideTitle = GUIDE_TITLES[guide_type] || {
+    label: "Cuestionario NOM-035",
+    title: "Evaluación de riesgos psicosociales"
+  };
   const companyDepartments = normalizeDepartments(companyDetails.departments);
   
   // Determine questions list
@@ -333,6 +352,14 @@ export default function SurveyPublic() {
                 <h1 style={{ fontSize: "24px", fontWeight: "800", marginBottom: "12px" }}>
                   Bienvenido a la evaluación de {company_name}
                 </h1>
+                <div style={{ marginBottom: "16px" }}>
+                  <span style={{ display: "block", color: "var(--color-primary)", fontSize: "13px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "4px" }}>
+                    {guideTitle.label}
+                  </span>
+                  <h2 style={{ fontSize: "18px", fontWeight: "750", margin: 0, color: "var(--text-primary)" }}>
+                    {guideTitle.title}
+                  </h2>
+                </div>
                 <p style={{ color: "var(--text-secondary)", fontSize: "14px", marginBottom: "32px", lineHeight: "1.6" }}>
                   Esta evaluación es confidencial y segura. Los datos recopilados se usarán únicamente para fines estadísticos y de mejora organizacional según lo establecido en la norma oficial mexicana <strong>NOM-035-STPS-2018</strong>.
                 </p>
@@ -448,9 +475,17 @@ export default function SurveyPublic() {
             {step === 1 && (
               <div className="glass-card animate-slide-up" style={{ padding: "40px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-                  <span style={{ fontSize: "14px", fontWeight: "600", color: "var(--color-primary)" }}>
-                    Página {pageIndex + 1} de {totalPages}
-                  </span>
+                  <div>
+                    <span style={{ display: "block", fontSize: "12px", fontWeight: "800", color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "3px" }}>
+                      {guideTitle.label}
+                    </span>
+                    <span style={{ display: "block", fontSize: "14px", fontWeight: "700", color: "var(--text-primary)" }}>
+                      {guideTitle.title}
+                    </span>
+                    <span style={{ display: "block", fontSize: "13px", color: "var(--text-muted)", marginTop: "3px" }}>
+                      Página {pageIndex + 1} de {totalPages}
+                    </span>
+                  </div>
                   <span style={{ fontSize: "13px", color: "var(--text-muted)" }}>
                     {Object.keys(answers).length} de {questions.length} respondidas
                   </span>
