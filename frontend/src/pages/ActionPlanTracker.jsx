@@ -15,6 +15,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
+import DimensionImpactDisclosure from "../components/DimensionImpactDisclosure";
 
 const INTERVENTION_LABELS = {
   "first_level": "Primer Nivel (Organizacional y Políticas)",
@@ -128,6 +129,7 @@ export default function ActionPlanTracker() {
         category_flagged: sugg.category_flagged,
         intervention_level: sugg.intervention_level,
         description: sugg.description,
+        impacted_dimensions: sugg.impacted_dimensions || [],
         status: "pending"
       });
       setTasks([...tasks, res.data]);
@@ -241,6 +243,10 @@ export default function ActionPlanTracker() {
             </div>
           )}
 
+          {task.impacted_dimensions?.length > 0 && (
+            <DimensionImpactDisclosure dimensions={task.impacted_dimensions} compact />
+          )}
+
           {task.assigned_to && (
             <div style={{ fontSize: "12px", color: "var(--color-primary)", marginBottom: "12px", display: "flex", alignItems: "center", gap: "6px", fontWeight: "600" }}>
               <span>👤</span> {task.assigned_to}
@@ -321,19 +327,28 @@ export default function ActionPlanTracker() {
             <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "16px", lineHeight: "1.5" }}>
               El sistema identificó categorías en nivel de riesgo medio/alto. Haz clic para incorporar estas recomendaciones a tu Kanban de seguimiento:
             </p>
+
+            <div className="intervention-level-guide" aria-label="Significado de niveles de intervención">
+              <span><strong>1° nivel</strong> Organizacional y políticas</span>
+              <span><strong>2° nivel</strong> Grupal y sensibilización</span>
+              <span><strong>3° nivel</strong> Individual y clínico</span>
+            </div>
             
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {suggestions.map((sugg, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "16px", padding: "10px 14px", borderRadius: "8px", backgroundColor: "var(--bg-card)", border: "1px solid var(--border-color)" }}>
-                  <div>
-                    <span style={{ fontSize: "10px", fontWeight: "600", textTransform: "uppercase", color: "var(--color-primary)", marginRight: "8px" }}>
-                      {sugg.intervention_level === "first_level" ? "1° Nivel" : "2° Nivel"}
-                    </span>
-                    <span style={{ fontSize: "13px", color: "var(--text-primary)" }}>{sugg.description}</span>
+                <div key={i} className="suggested-action-row">
+                  <div className="suggested-action-main">
+                    <div className="suggested-action-copy">
+                      <span style={{ fontSize: "10px", fontWeight: "600", textTransform: "uppercase", color: "var(--color-primary)", marginRight: "8px" }}>
+                        {sugg.intervention_level === "first_level" ? "1° Nivel" : "2° Nivel"}
+                      </span>
+                      <span style={{ fontSize: "13px", color: "var(--text-primary)" }}>{sugg.description}</span>
+                    </div>
+                    <button onClick={() => handleAddSuggestion(sugg)} className="btn btn-secondary" style={{ padding: "6px 12px", fontSize: "12px", flexShrink: 0 }}>
+                      <Plus size={14} /> Agregar
+                    </button>
                   </div>
-                  <button onClick={() => handleAddSuggestion(sugg)} className="btn btn-secondary" style={{ padding: "6px 12px", fontSize: "12px", flexShrink: 0 }}>
-                    <Plus size={14} /> Agregar
-                  </button>
+                  <DimensionImpactDisclosure dimensions={sugg.impacted_dimensions || []} />
                 </div>
               ))}
             </div>
@@ -342,7 +357,7 @@ export default function ActionPlanTracker() {
 
         {/* Kanban Board Layout */}
         <DragDropContext onDragEnd={onDragEnd}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", flex: 1, minHeight: "500px", paddingBottom: "30px" }}>
+          <div className="action-plan-board" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", flex: 1, minHeight: "500px", paddingBottom: "30px" }}>
             
             {/* Por Hacer */}
             <Droppable droppableId="pending">

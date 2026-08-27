@@ -5,6 +5,13 @@ from backend.app.db.session import get_db
 from backend.app.db.models import User, ActionPlan, SurveyResponse
 from backend.app.schemas.action_plan import ActionPlanCreate, ActionPlanUpdate, ActionPlanOut
 from backend.app.core.auth import get_current_admin
+from backend.app.core.nom035_engine import (
+    GUIA_II_MAPPING,
+    GUIA_II_THRESHOLDS,
+    GUIA_III_MAPPING,
+    GUIA_III_THRESHOLDS,
+    get_risk_level,
+)
 
 router = APIRouter()
 
@@ -87,6 +94,50 @@ STANDARD_SUGGESTIONS = {
     ]
 }
 
+
+def build_impacted_dimensions(responses, source_name: str, guide_type: str) -> list[dict]:
+    """Build traceable dimension evidence for a flagged category or domain."""
+    if guide_type == "GUIA_II":
+        mapping = GUIA_II_MAPPING
+        thresholds = GUIA_II_THRESHOLDS
+    elif guide_type == "GUIA_III":
+        mapping = GUIA_III_MAPPING
+        thresholds = GUIA_III_THRESHOLDS
+    else:
+        return []
+
+    source_items = mapping.get("categories", {}).get(source_name)
+    if source_items is None:
+        source_items = mapping.get("domains", {}).get(source_name)
+    if not source_items:
+        return []
+
+    source_item_ids = set(source_items)
+    impacts = []
+    for dimension_name, dimension_items in mapping.get("dimensions", {}).items():
+        if source_item_ids.isdisjoint(dimension_items):
+            continue
+
+        scores = []
+        for response in responses:
+            calculated_scores = response.calculated_scores or {}
+            value = calculated_scores.get("dimension_scores", {}).get(dimension_name)
+            if isinstance(value, (int, float)):
+                scores.append(value)
+
+        if not scores:
+            continue
+
+        average = round(sum(scores) / len(scores), 2)
+        dimension_cutoffs = thresholds.get("dimensions", {}).get(dimension_name, [3, 4, 5, 6])
+        impacts.append({
+            "name": dimension_name,
+            "score": average,
+            "risk": get_risk_level(average, dimension_cutoffs),
+        })
+
+    return impacts
+
 @router.get("/tasks", response_model=list[ActionPlanOut])
 def get_tasks(
     db: Session = Depends(get_db),
@@ -106,6 +157,8 @@ def create_task(
         domain_flagged=task_in.domain_flagged,
         intervention_level=task_in.intervention_level,
         description=task_in.description,
+        assigned_to=task_in.assigned_to,
+        impacted_dimensions=[dimension.model_dump() for dimension in task_in.impacted_dimensions],
         status=task_in.status,
         due_date=task_in.due_date
     )
@@ -217,7 +270,12 @@ def get_suggested_recommendations(
                 suggestions.append({
                     "category_flagged": cat,
                     "intervention_level": sugg["intervention_level"],
-                    "description": sugg["description"]
+                    "description": sugg["description"],
+                    "impacted_dimensions": build_impacted_dimensions(
+                        responses,
+                        cat,
+                        current_user.company.active_guide,
+                    ),
                 })
                 
     return {

@@ -134,6 +134,7 @@ class ActionPlan(Base):
     status = Column(String, default="pending")  # 'pending', 'in_progress', 'completed'
     description = Column(String, nullable=False)
     assigned_to = Column(String, nullable=True)
+    impacted_dimensions = Column(JSON, nullable=True, default=list)
     due_date = Column(Date, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 

@@ -68,7 +68,9 @@ def test_migrates_legacy_sqlite_before_loading_companies_and_consultants():
 
     user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
     user_indexes = {index["name"] for index in inspect(engine).get_indexes("users")}
+    action_plan_columns = {column["name"] for column in inspect(engine).get_columns("action_plans")}
     assert {"is_senior", "parent_consultant_id"} <= user_columns
+    assert "impacted_dimensions" in action_plan_columns
     assert "ix_users_parent_consultant_id" in user_indexes
 
     session = sessionmaker(bind=engine)()

@@ -18,6 +18,7 @@ from sqlalchemy import inspect, text
 SCHEMA_COLUMNS = {
     "action_plans": {
         "assigned_to": "VARCHAR",
+        "impacted_dimensions": "JSON",
     },
     "companies": {
         "logo_url": "VARCHAR",
