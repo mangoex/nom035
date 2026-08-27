@@ -42,7 +42,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True)  # Nullable for superadmin
-    role = Column(String, nullable=False)  # 'superadmin', 'company_admin'
+    role = Column(String, nullable=False)  # 'superadmin', 'company_admin', 'consultor'
     name = Column(String, nullable=False)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
@@ -52,6 +52,8 @@ class User(Base):
     logo_url = Column(String, nullable=True)
     capacitaciones = Column(JSON, nullable=True) # Array of {codigo, nombre, horas}
     is_active = Column(Boolean, default=True, nullable=False)
+    is_senior = Column(Boolean, default=False, nullable=False)
+    parent_consultant_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     billing_paid = Column(Boolean, default=False, nullable=False)
     billing_due_date = Column(Date, nullable=True)
     billing_amount = Column(Integer, default=0, nullable=True)
@@ -60,6 +62,7 @@ class User(Base):
 
     # Relationships
     company = relationship("Company", back_populates="users", foreign_keys=[company_id])
+    sub_consultants = relationship("User", foreign_keys=[parent_consultant_id], backref="parent_consultant", remote_side=[id])
 
 
 class SurveySession(Base):

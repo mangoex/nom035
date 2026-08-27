@@ -14,6 +14,7 @@ import SuperadminConsultants from "./pages/SuperadminConsultants";
 import ConsultantDashboard from "./pages/ConsultantDashboard";
 import ConsultantCompanies from "./pages/ConsultantCompanies";
 import ConsultantUsers from "./pages/ConsultantUsers";
+import ConsultantSubConsultants from "./pages/ConsultantSubConsultants";
 import CompanyTrainings from "./pages/CompanyTrainings";
 import PrivacyNotice from "./pages/PrivacyNotice";
 
@@ -55,6 +56,19 @@ const ConsultantRoute = ({ children }) => {
   const user = JSON.parse(userStr);
   if (user.role !== "consultor") {
     return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+};
+
+// Senior Consultant Exclusive Route Wrapper
+const SeniorConsultantRoute = ({ children }) => {
+  const userStr = localStorage.getItem("user");
+  if (!userStr) {
+    return <Navigate to="/login" replace />;
+  }
+  const user = JSON.parse(userStr);
+  if (user.role !== "consultor" || !user.is_senior) {
+    return <Navigate to="/consultant/dashboard" replace />;
   }
   return children;
 };
@@ -142,6 +156,14 @@ export default function App() {
             <ConsultantRoute>
               <ConsultantUsers />
             </ConsultantRoute>
+          } 
+        />
+        <Route 
+          path="/consultant/sub-consultants" 
+          element={
+            <SeniorConsultantRoute>
+              <ConsultantSubConsultants />
+            </SeniorConsultantRoute>
           } 
         />
         <Route

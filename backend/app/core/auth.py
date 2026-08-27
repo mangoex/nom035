@@ -107,3 +107,12 @@ def get_current_consultant(current_user: User = Depends(get_current_user)) -> Us
             detail="Solo el Consultor puede realizar esta acción."
         )
     return current_user
+
+# Dependency to check if current user is senior consultant
+def get_current_senior_consultant(current_user: User = Depends(get_current_consultant)) -> User:
+    if not current_user.is_senior:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Solo los Consultores Senior tienen autorización para gestionar consultores."
+        )
+    return current_user

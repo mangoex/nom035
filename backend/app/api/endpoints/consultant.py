@@ -6,8 +6,18 @@ from typing import List, Optional
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company, SurveySession, SurveyResponse
 from backend.app.schemas.company import CompanyOut, CompanyCreate, CompanyUpdate
-from backend.app.schemas.auth import ConsultantUserCreate, ConsultantUserUpdate
-from backend.app.core.auth import get_current_consultant, get_password_hash
+from backend.app.schemas.auth import (
+    ConsultantUserCreate,
+    ConsultantUserUpdate,
+    SubConsultantCreate,
+    SubConsultantUpdate,
+    SubConsultantOut
+)
+from backend.app.core.auth import (
+    get_current_consultant,
+    get_current_senior_consultant,
+    get_password_hash
+)
 from backend.app.core.company_utils import normalize_departments
 from backend.app.api.endpoints.survey import (
     build_session_results_excel,
@@ -483,3 +493,180 @@ def delete_consultant_user(
     db.commit()
     return {"message": "Usuario eliminado exitosamente."}
 
+
+# --- SENIOR CONSULTANT: SUB-CONSULTANTS MANAGEMENT ---
+
+@router.get("/sub-consultants", response_model=List[SubConsultantOut])
+def get_sub_consultants(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_senior_consultant)
+):
+    sub_consultants = (
+        db.query(User)
+        .filter(User.parent_consultant_id == current_user.id, User.role == "consultor")
+        .order_by(User.created_at.desc())
+        .all()
+    )
+    return sub_consultants
+
+@router.post("/sub-consultants", response_model=SubConsultantOut, status_code=status.HTTP_201_CREATED)
+def create_sub_consultant(
+    sub_in: SubConsultantCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_senior_consultant)
+):
+    # Check email uniqueness
+    existing = db.query(User).filter(User.email == sub_in.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo electrónico ya está registrado por otro usuario."
+        )
+
+    # Check and deduct credits from Senior consultant
+    credits_to_assign = sub_in.creditos or 0
+    if credits_to_assign < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Los créditos asignados no pueden ser negativos."
+        )
+    
+    current_senior_credits = current_user.creditos or 0
+    if credits_to_assign > current_senior_credits:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"No cuentas con suficientes créditos disponibles en tu cuenta ({current_senior_credits}) para asignar {credits_to_assign} créditos."
+        )
+
+    # Deduct from senior
+    current_user.creditos = current_senior_credits - credits_to_assign
+
+    hashed_password = get_password_hash(sub_in.password)
+    new_sub = User(
+        name=sub_in.name,
+        email=sub_in.email,
+        password_hash=hashed_password,
+        role="consultor",
+        cedula_profesional=sub_in.cedula_profesional,
+        creditos=credits_to_assign,
+        is_active=True,
+        is_senior=False,  # Sub-consultants can NEVER be senior
+        parent_consultant_id=current_user.id,
+        company_id=None
+    )
+    db.add(new_sub)
+    db.commit()
+    db.refresh(new_sub)
+    return new_sub
+
+@router.put("/sub-consultants/{user_id}", response_model=SubConsultantOut)
+def update_sub_consultant(
+    user_id: int,
+    sub_in: SubConsultantUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_senior_consultant)
+):
+    sub = db.query(User).filter(
+        User.id == user_id,
+        User.parent_consultant_id == current_user.id,
+        User.role == "consultor"
+    ).first()
+    if not sub:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Consultor subordinado no encontrado."
+        )
+
+    if sub_in.email is not None and sub_in.email != sub.email:
+        existing = db.query(User).filter(User.email == sub_in.email).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El correo electrónico ya está en uso por otro usuario."
+            )
+        sub.email = sub_in.email
+
+    if sub_in.name is not None:
+        sub.name = sub_in.name
+
+    if sub_in.password is not None and sub_in.password.strip() != "":
+        sub.password_hash = get_password_hash(sub_in.password)
+
+    if sub_in.cedula_profesional is not None:
+        sub.cedula_profesional = sub_in.cedula_profesional
+
+    if sub_in.is_active is not None:
+        sub.is_active = sub_in.is_active
+
+    if sub_in.creditos is not None:
+        new_credits = sub_in.creditos
+        if new_credits < 0:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Los créditos no pueden ser negativos.")
+        old_credits = sub.creditos or 0
+        diff = new_credits - old_credits
+        if diff > 0:
+            # Need more credits from senior
+            current_senior_credits = current_user.creditos or 0
+            if diff > current_senior_credits:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"No cuentas con suficientes créditos disponibles ({current_senior_credits}) para aumentar {diff} créditos."
+                )
+            current_user.creditos = current_senior_credits - diff
+        elif diff < 0:
+            # Refund difference back to senior
+            refund = abs(diff)
+            current_user.creditos = (current_user.creditos or 0) + refund
+        sub.creditos = new_credits
+
+    db.commit()
+    db.refresh(sub)
+    return sub
+
+@router.delete("/sub-consultants/{user_id}", status_code=status.HTTP_200_OK)
+def delete_sub_consultant(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_senior_consultant)
+):
+    sub = db.query(User).filter(
+        User.id == user_id,
+        User.parent_consultant_id == current_user.id,
+        User.role == "consultor"
+    ).first()
+    if not sub:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Consultor subordinado no encontrado."
+        )
+
+    # Refund unused credits back to senior
+    refund_credits = sub.creditos or 0
+    if refund_credits > 0:
+        current_user.creditos = (current_user.creditos or 0) + refund_credits
+
+    db.delete(sub)
+    db.commit()
+    return {"message": "Consultor subordinado eliminado exitosamente."}
+
+@router.put("/sub-consultants/{user_id}/toggle-active", response_model=SubConsultantOut)
+def toggle_sub_consultant_active(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_senior_consultant)
+):
+    sub = db.query(User).filter(
+        User.id == user_id,
+        User.parent_consultant_id == current_user.id,
+        User.role == "consultor"
+    ).first()
+    if not sub:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Consultor subordinado no encontrado."
+        )
+
+    sub.is_active = not sub.is_active
+    db.commit()
+    db.refresh(sub)
+    return sub

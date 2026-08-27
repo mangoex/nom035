@@ -109,6 +109,9 @@ export default function Sidebar({ company }) {
     { path: "/consultant/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
     { path: "/consultant/companies", label: "Empresas", icon: <Building size={20} /> },
     { path: "/consultant/users", label: "Usuarios", icon: <Users size={20} /> },
+    ...(user?.is_senior ? [
+      { path: "/consultant/sub-consultants", label: "Consultores", icon: <Users size={20} /> }
+    ] : [])
   ] : [
     { path: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
     { path: "/intake", label: "Captura de Datos", icon: <ClipboardList size={20} /> },

@@ -146,6 +146,7 @@ def create_consultant(
         creditos=consultant_in.creditos,
         capacitaciones=[t.dict() for t in consultant_in.capacitaciones] if consultant_in.capacitaciones else [],
         is_active=consultant_in.is_active if consultant_in.is_active is not None else True,
+        is_senior=consultant_in.is_senior if consultant_in.is_senior is not None else False,
         company_id=None
     )
     db.add(user)
@@ -189,7 +190,28 @@ def update_consultant(
         user.capacitaciones = [t.dict() for t in consultant_in.capacitaciones]
     if consultant_in.is_active is not None:
         user.is_active = consultant_in.is_active
+    if consultant_in.is_senior is not None:
+        user.is_senior = consultant_in.is_senior
 
+    db.commit()
+    db.refresh(user)
+    return user
+
+@router.put("/consultants/{user_id}/senior-status", response_model=ConsultantOut)
+def update_consultant_senior_status(
+    user_id: int,
+    senior_in: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_superadmin)
+):
+    user = db.query(User).filter(User.id == user_id, User.role == "consultor").first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Consultor no encontrado."
+        )
+
+    user.is_senior = bool(senior_in.get("is_senior", False))
     db.commit()
     db.refresh(user)
     return user

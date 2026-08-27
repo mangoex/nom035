@@ -1,6 +1,6 @@
 // frontend/src/pages/SuperadminConsultants.jsx
 import React, { useEffect, useState } from "react";
-import { Users, Plus, Search, Edit, Trash2, X, AlertCircle, RefreshCw, Award, Database, CreditCard, CheckCircle2, XCircle } from "lucide-react";
+import { Users, Plus, Search, Edit, Trash2, X, AlertCircle, RefreshCw, Award, Database, CreditCard, CheckCircle2, XCircle, Crown } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
@@ -20,7 +20,8 @@ export default function SuperadminConsultants() {
     password: "",
     cedula_profesional: "",
     creditos: 0,
-    capacitaciones: []
+    capacitaciones: [],
+    is_senior: false
   });
   const [profileLogo, setProfileLogo] = useState(null);
   const [profileCedulaImage, setProfileCedulaImage] = useState(null);
@@ -62,7 +63,8 @@ export default function SuperadminConsultants() {
       password: "",
       cedula_profesional: "",
       creditos: 0,
-      capacitaciones: []
+      capacitaciones: [],
+      is_senior: false
     });
     setProfileLogo(null);
     setProfileCedulaImage(null);
@@ -78,7 +80,8 @@ export default function SuperadminConsultants() {
       password: "", // Keep blank unless changing
       cedula_profesional: consultant.cedula_profesional || "",
       creditos: consultant.creditos || 0,
-      capacitaciones: consultant.capacitaciones || []
+      capacitaciones: consultant.capacitaciones || [],
+      is_senior: Boolean(consultant.is_senior)
     });
     setProfileLogo(null);
     setProfileCedulaImage(null);
@@ -109,6 +112,19 @@ export default function SuperadminConsultants() {
       console.error(err);
       setConsultants(prev => prev.map(c => c.id === consultant.id ? { ...c, is_active: consultant.is_active } : c));
       alert(err.response?.data?.detail || "No se pudo actualizar el acceso del consultor.");
+    }
+  };
+
+  const handleToggleSenior = async (consultant) => {
+    const nextSenior = !consultant.is_senior;
+    setConsultants(consultants.map(c => c.id === consultant.id ? { ...c, is_senior: nextSenior } : c));
+    try {
+      const res = await api.put(`/api/superadmin/consultants/${consultant.id}/senior-status`, { is_senior: nextSenior });
+      setConsultants(prev => prev.map(c => c.id === consultant.id ? res.data : c));
+    } catch (err) {
+      console.error(err);
+      setConsultants(prev => prev.map(c => c.id === consultant.id ? { ...c, is_senior: consultant.is_senior } : c));
+      alert(err.response?.data?.detail || "No se pudo actualizar el rango Senior del consultor.");
     }
   };
 
@@ -254,10 +270,6 @@ export default function SuperadminConsultants() {
     }
   };
 
-  const editingCompanyWrapper = () => {
-    return editingConsultant !== null;
-  };
-
   const filteredConsultants = consultants.filter(c => 
     c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     c.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -326,6 +338,7 @@ export default function SuperadminConsultants() {
                     <th>Correo Electrónico</th>
                     <th>Cédula Profesional</th>
                     <th>Créditos del Sistema</th>
+                    <th>Senior</th>
                     <th>Acceso</th>
                     <th>Billing</th>
                     <th>Fecha Alta</th>
@@ -335,14 +348,35 @@ export default function SuperadminConsultants() {
                 <tbody>
                   {filteredConsultants.length === 0 ? (
                     <tr>
-                      <td colSpan="8" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
+                      <td colSpan="9" style={{ textAlign: "center", padding: "40px", color: "var(--text-muted)" }}>
                         No se encontraron consultores registrados.
                       </td>
                     </tr>
                   ) : (
                     filteredConsultants.map((c) => (
                       <tr key={c.id}>
-                        <td style={{ fontWeight: "600", color: "var(--text-primary)" }}>{c.name}</td>
+                        <td style={{ fontWeight: "600", color: "var(--text-primary)" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            {c.name}
+                            {c.is_senior && (
+                              <span
+                                className="badge"
+                                style={{
+                                  backgroundColor: "rgba(168, 85, 247, 0.15)",
+                                  color: "#a855f7",
+                                  fontSize: "11px",
+                                  fontWeight: "700",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px",
+                                  padding: "2px 6px"
+                                }}
+                              >
+                                <Crown size={12} /> Senior
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td>{c.email}</td>
                         <td>
                           <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontWeight: "500" }}>
@@ -355,6 +389,38 @@ export default function SuperadminConsultants() {
                             <Database size={14} />
                             {c.creditos ?? 0}
                           </span>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleSenior(c)}
+                            title={c.is_senior ? "Quitar rango Senior" : "Convertir en Consultor Senior"}
+                            aria-label={c.is_senior ? "Quitar rango Senior" : "Convertir en Consultor Senior"}
+                            style={{
+                              width: "44px",
+                              height: "24px",
+                              borderRadius: "999px",
+                              border: "none",
+                              backgroundColor: c.is_senior ? "#8b5cf6" : "var(--border-color)",
+                              cursor: "pointer",
+                              position: "relative",
+                              transition: "all 0.2s ease"
+                            }}
+                          >
+                            <span
+                              style={{
+                                position: "absolute",
+                                top: "3px",
+                                left: c.is_senior ? "23px" : "3px",
+                                width: "18px",
+                                height: "18px",
+                                borderRadius: "50%",
+                                backgroundColor: "#ffffff",
+                                transition: "all 0.2s ease",
+                                boxShadow: "0 1px 3px rgba(15, 23, 42, 0.25)"
+                              }}
+                            />
+                          </button>
                         </td>
                         <td>
                           <button
@@ -511,37 +577,37 @@ export default function SuperadminConsultants() {
                 </div>
 
                 <div className="form-group">
-                    <label className="form-label" style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
-                      <Award size={14} /> Cédula Profesional (Número)
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.cedula_profesional}
-                      onChange={(e) => setFormData({ ...formData, cedula_profesional: e.target.value })}
-                      placeholder="Ej. 12345678"
-                    />
-                  </div>
-                  
-                  <div className="form-group" style={{ gridColumn: "1 / -1" }}>
-                    <label className="form-label" style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
-                      Imagen de Cédula Profesional (PNG/JPG)
-                    </label>
-                    <input
-                      type="file"
-                      accept=".png, .jpg, .jpeg"
-                      className="form-input"
-                      style={{ padding: "8px" }}
-                      onChange={(e) => setProfileCedulaImage(e.target.files[0])}
-                    />
-                    {editingConsultant?.cedula_image_url && !profileCedulaImage && (
-                      <div style={{ marginTop: "8px", fontSize: "12px" }}>
-                        <a href={`${import.meta.env.VITE_API_URL || "http://localhost:8000"}${editingConsultant.cedula_image_url}`} target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none" }}>
-                          Ver Cédula Actual
-                        </a>
-                      </div>
-                    )}
-                  </div>
+                  <label className="form-label" style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Award size={14} /> Cédula Profesional (Número)
+                  </label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.cedula_profesional}
+                    onChange={(e) => setFormData({ ...formData, cedula_profesional: e.target.value })}
+                    placeholder="Ej. 12345678"
+                  />
+                </div>
+                
+                <div className="form-group" style={{ gridColumn: "1 / -1" }}>
+                  <label className="form-label" style={{ marginBottom: "6px", display: "flex", alignItems: "center", gap: "6px" }}>
+                    Imagen de Cédula Profesional (PNG/JPG)
+                  </label>
+                  <input
+                    type="file"
+                    accept=".png, .jpg, .jpeg"
+                    className="form-input"
+                    style={{ padding: "8px" }}
+                    onChange={(e) => setProfileCedulaImage(e.target.files[0])}
+                  />
+                  {editingConsultant?.cedula_image_url && !profileCedulaImage && (
+                    <div style={{ marginTop: "8px", fontSize: "12px" }}>
+                      <a href={`${import.meta.env.VITE_API_URL || "http://localhost:8000"}${editingConsultant.cedula_image_url}`} target="_blank" rel="noreferrer" style={{ color: "var(--color-primary)", textDecoration: "none" }}>
+                        Ver Cédula Actual
+                      </a>
+                    </div>
+                  )}
+                </div>
 
                 <div className="form-group">
                   <label className="form-label" htmlFor="mc_credits">Créditos de Uso</label>
@@ -557,6 +623,35 @@ export default function SuperadminConsultants() {
                   <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
                     * Los créditos permiten al consultor procesar encuestas de clientes.
                   </span>
+                </div>
+
+                {/* Casilla Senior */}
+                <div style={{
+                  padding: "12px 16px",
+                  borderRadius: "var(--radius-sm)",
+                  border: "1px solid rgba(139, 92, 246, 0.3)",
+                  backgroundColor: "rgba(139, 92, 246, 0.05)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <Crown size={20} style={{ color: "#8b5cf6" }} />
+                    <div>
+                      <div style={{ fontSize: "14px", fontWeight: "600", color: "var(--text-primary)" }}>
+                        Consultor Senior
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--text-secondary)" }}>
+                        Permite coordinar, registrar y asignar créditos a consultores dependientes.
+                      </div>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={formData.is_senior}
+                    onChange={(e) => setFormData({ ...formData, is_senior: e.target.checked })}
+                    style={{ width: "18px", height: "18px", cursor: "pointer", accentColor: "#8b5cf6" }}
+                  />
                 </div>
 
                 <div className="form-group">
@@ -652,6 +747,8 @@ export default function SuperadminConsultants() {
             </div>
           </div>
         )}
+
+        {/* Modal: Billing Details */}
         {billingConsultant && (
           <div style={{
             position: "fixed",
@@ -668,17 +765,16 @@ export default function SuperadminConsultants() {
               <button
                 onClick={() => setBillingConsultant(null)}
                 style={{ position: "absolute", top: "20px", right: "20px", background: "none", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}
-                aria-label="Cerrar"
               >
                 <X size={20} />
               </button>
 
-              <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "6px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
+              <h2 style={{ fontSize: "18px", fontWeight: "700", marginBottom: "8px", color: "var(--text-primary)", display: "flex", alignItems: "center", gap: "8px" }}>
                 <CreditCard size={20} style={{ color: "var(--color-primary)" }} />
-                Billing
+                Facturación y Pagos: {billingConsultant.name}
               </h2>
-              <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "18px" }}>
-                {billingConsultant.name}
+              <p style={{ fontSize: "13px", color: "var(--text-muted)", marginBottom: "20px" }}>
+                Gestiona el estado de cobranza, fecha límite e historial de depósitos.
               </p>
 
               {billingError && (
@@ -689,98 +785,91 @@ export default function SuperadminConsultants() {
               )}
 
               <form onSubmit={handleBillingSubmit} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    padding: "12px",
-                    borderRadius: "var(--radius-sm)",
-                    border: "1px solid var(--border-color)",
-                    backgroundColor: "var(--bg-secondary)",
-                    cursor: "pointer"
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={billingData.billing_paid}
-                    onChange={(e) => setBillingData({ ...billingData, billing_paid: e.target.checked })}
-                  />
-                  <span style={{ fontSize: "13px", fontWeight: "700", color: "var(--text-primary)" }}>
-                    Consultor pagado
-                  </span>
-                </label>
-
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   <div className="form-group">
-                    <label className="form-label" htmlFor="billing_due_date">Fecha de vencimiento</label>
+                    <label className="form-label">Estado de Pago</label>
+                    <select
+                      className="form-input"
+                      value={billingData.billing_paid ? "paid" : "pending"}
+                      onChange={(e) => setBillingData({ ...billingData, billing_paid: e.target.value === "paid" })}
+                    >
+                      <option value="pending">Pendiente</option>
+                      <option value="paid">Pagado</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Fecha Límite</label>
                     <input
-                      id="billing_due_date"
                       type="date"
                       className="form-input"
                       value={billingData.billing_due_date || ""}
                       onChange={(e) => setBillingData({ ...billingData, billing_due_date: e.target.value })}
                     />
                   </div>
-                  <div className="form-group">
-                    <label className="form-label" htmlFor="billing_amount">Cantidad de pago</label>
-                    <input
-                      id="billing_amount"
-                      type="number"
-                      min="0"
-                      className="form-input"
-                      value={billingData.billing_amount}
-                      onChange={(e) => setBillingData({ ...billingData, billing_amount: parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
                 </div>
 
-                <div style={{ borderTop: "1px solid var(--border-color)", paddingTop: "14px" }}>
+                <div className="form-group">
+                  <label className="form-label">Monto de Facturación / Cuota ($MXN)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input"
+                    value={billingData.billing_amount}
+                    onChange={(e) => setBillingData({ ...billingData, billing_amount: e.target.value })}
+                    placeholder="0"
+                  />
+                </div>
+
+                {/* Historial de pagos */}
+                <div className="form-group" style={{ marginTop: "8px", padding: "16px", backgroundColor: "rgba(0,0,0,0.02)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                    <h3 style={{ fontSize: "14px", fontWeight: "700", margin: 0 }}>Historial de pagos</h3>
-                    <button type="button" onClick={handleAddPayment} className="btn btn-secondary" style={{ padding: "6px 10px", fontSize: "12px" }}>
-                      <Plus size={14} />
-                      Agregar pago
+                    <label className="form-label" style={{ margin: 0 }}>Historial de Pagos Recibidos</label>
+                    <button type="button" onClick={handleAddPayment} className="btn btn-secondary" style={{ padding: "4px 8px", fontSize: "12px" }}>
+                      <Plus size={14} /> Registrar Pago
                     </button>
                   </div>
 
                   {billingData.billing_history.length === 0 ? (
-                    <p style={{ padding: "18px", borderRadius: "var(--radius-sm)", border: "1px dashed var(--border-color)", color: "var(--text-muted)", textAlign: "center", fontSize: "13px" }}>
-                      No hay pagos registrados.
+                    <p style={{ fontSize: "13px", color: "var(--text-muted)", textAlign: "center", fontStyle: "italic" }}>
+                      No se han registrado abonos o pagos.
                     </p>
                   ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-                      {billingData.billing_history.map((payment, index) => (
-                        <div key={index} style={{ display: "grid", gridTemplateColumns: "140px 120px 1fr 36px", gap: "8px", alignItems: "center" }}>
+                      {billingData.billing_history.map((payment, i) => (
+                        <div key={i} style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                           <input
                             type="date"
-                            required
                             className="form-input"
-                            value={payment.date || ""}
-                            onChange={(e) => handleUpdatePayment(index, "date", e.target.value)}
+                            value={payment.date}
+                            onChange={(e) => handleUpdatePayment(i, "date", e.target.value)}
+                            style={{ width: "140px", padding: "6px 8px", fontSize: "12px" }}
+                            required
                           />
                           <input
                             type="number"
-                            required
-                            min="0"
+                            placeholder="Monto"
                             className="form-input"
-                            value={payment.amount || 0}
-                            onChange={(e) => handleUpdatePayment(index, "amount", parseInt(e.target.value) || 0)}
+                            value={payment.amount}
+                            onChange={(e) => handleUpdatePayment(i, "amount", e.target.value)}
+                            style={{ width: "100px", padding: "6px 8px", fontSize: "12px" }}
+                            min="0"
+                            required
                           />
                           <input
                             type="text"
+                            placeholder="Nota o Referencia..."
                             className="form-input"
-                            placeholder="Nota"
-                            value={payment.note || ""}
-                            onChange={(e) => handleUpdatePayment(index, "note", e.target.value)}
+                            value={payment.note}
+                            onChange={(e) => handleUpdatePayment(i, "note", e.target.value)}
+                            style={{ flex: 1, padding: "6px 8px", fontSize: "12px" }}
                           />
                           <button
                             type="button"
-                            onClick={() => handleRemovePayment(index)}
-                            className="btn btn-danger"
-                            title="Eliminar pago"
-                            aria-label="Eliminar pago"
-                            style={{ width: "34px", height: "34px", padding: "6px", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                            onClick={() => handleRemovePayment(i)}
+                            className="btn"
+                            style={{ padding: "6px", backgroundColor: "var(--color-danger-bg)", color: "var(--color-danger)", border: "none" }}
+                            title="Eliminar"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -795,7 +884,7 @@ export default function SuperadminConsultants() {
                     Cancelar
                   </button>
                   <button type="submit" disabled={billingLoading} className="btn btn-primary">
-                    {billingLoading ? "Guardando..." : "Guardar Billing"}
+                    {billingLoading ? "Guardando..." : "Actualizar Facturación"}
                   </button>
                 </div>
               </form>

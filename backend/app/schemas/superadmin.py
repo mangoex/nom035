@@ -1,5 +1,5 @@
 # backend/app/schemas/superadmin.py
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 from typing import Optional, List
 import datetime
 
@@ -17,6 +17,7 @@ class ConsultantCreate(BaseModel):
     creditos: Optional[int] = 0
     capacitaciones: Optional[List[TrainingItem]] = []
     is_active: Optional[bool] = True
+    is_senior: Optional[bool] = False
 
 class ConsultantUpdate(BaseModel):
     name: Optional[str] = None
@@ -26,6 +27,10 @@ class ConsultantUpdate(BaseModel):
     creditos: Optional[int] = None
     capacitaciones: Optional[List[TrainingItem]] = None
     is_active: Optional[bool] = None
+    is_senior: Optional[bool] = None
+
+class SeniorStatusUpdate(BaseModel):
+    is_senior: bool
 
 class PaymentHistoryItem(BaseModel):
     date: datetime.date
@@ -49,11 +54,12 @@ class ConsultantOut(BaseModel):
     logo_url: Optional[str] = None
     capacitaciones: Optional[List[TrainingItem]] = []
     is_active: bool = True
+    is_senior: bool = False
+    parent_consultant_id: Optional[int] = None
     billing_paid: bool = False
     billing_due_date: Optional[datetime.date] = None
     billing_amount: Optional[int] = 0
     billing_history: Optional[List[PaymentHistoryItem]] = []
     created_at: datetime.datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
