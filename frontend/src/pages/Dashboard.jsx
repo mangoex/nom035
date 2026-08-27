@@ -13,7 +13,10 @@ import {
   XCircle,
   BarChart2,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CalendarDays,
+  GitCompareArrows,
+  Building2
 } from "lucide-react";
 import { 
   ResponsiveContainer, 
@@ -53,13 +56,33 @@ const CustomTooltip = ({ active, payload }) => {
     return (
       <div style={{ backgroundColor: "var(--bg-secondary)", padding: "10px", border: "1px solid var(--border-color)", borderRadius: "8px", color: "var(--text-primary)" }}>
         <p style={{ fontWeight: "700", marginBottom: "4px" }}>{data.fullName}</p>
-        <p>Puntaje: <span style={{ fontWeight: "600" }}>{data.Puntaje}</span></p>
-        <p>Nivel de Riesgo: <strong style={{ color: RISK_COLORS[data.Riesgo] }}>{data.Riesgo}</strong></p>
+        {payload.map((entry) => (
+          <p key={entry.dataKey} style={{ color: entry.color }}>
+            {entry.name}: <span style={{ fontWeight: "700" }}>{entry.value ?? "Sin datos"}</span>
+          </p>
+        ))}
+        {data.Riesgo && <p>Nivel de Riesgo: <strong style={{ color: RISK_COLORS[data.Riesgo] }}>{data.Riesgo}</strong></p>}
       </div>
     );
   }
   return null;
 };
+
+const GUIDE_LABELS = {
+  GUIA_I: "Guía I",
+  GUIA_II: "Guía II",
+  GUIA_III: "Guía III"
+};
+
+const formatSurveyDate = (session) => {
+  const value = session?.fecha_fin || session?.created_at;
+  if (!value) return "Fecha no disponible";
+  return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
+};
+
+const sessionOptionLabel = (session) => (
+  `${session.company_name} · ${GUIDE_LABELS[session.guide_type] || session.guide_type} · ${formatSurveyDate(session)} · ${session.response_count} respuestas`
+);
 
 export default function Dashboard({ consultantMode = false }) {
   const navigate = useNavigate();
@@ -75,6 +98,14 @@ export default function Dashboard({ consultantMode = false }) {
   const [suggestions, setSuggestions] = useState([]);
   const [error, setError] = useState("");
   const [isAccessDenied, setIsAccessDenied] = useState(false);
+  const [surveySessions, setSurveySessions] = useState([]);
+  const [sessionsReady, setSessionsReady] = useState(!consultantMode);
+  const [selectedSessionContext, setSelectedSessionContext] = useState(null);
+  const [compareEnabled, setCompareEnabled] = useState(false);
+  const [comparisonSessionId, setComparisonSessionId] = useState("");
+  const [comparisonStats, setComparisonStats] = useState(null);
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [comparisonError, setComparisonError] = useState("");
   
   const handleDownloadPDF = async () => {
     // get user info from context or token if needed, or just pass basic role
@@ -109,6 +140,41 @@ export default function Dashboard({ consultantMode = false }) {
       [dimName]: !prev[dimName]
     }));
   };
+
+  useEffect(() => {
+    if (!consultantMode) return;
+
+    let cancelled = false;
+    const loadSurveySessions = async () => {
+      try {
+        const response = await api.get("/api/consultant/survey-sessions");
+        if (cancelled) return;
+        const completedSessions = response.data.filter((session) => session.response_count > 0);
+        setSurveySessions(completedSessions);
+
+        const requestedSessionExists = completedSessions.some((session) => String(session.id) === String(sessionId));
+        if (!requestedSessionExists && completedSessions.length > 0) {
+          const nextParams = new URLSearchParams(searchParams);
+          nextParams.set("session_id", String(completedSessions[0].id));
+          setSearchParams(nextParams, { replace: true });
+        } else if (completedSessions.length === 0) {
+          setError("Todavía no hay encuestas con respuestas disponibles para evaluar.");
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error(err);
+          setError("No fue posible cargar las encuestas autorizadas.");
+          setLoading(false);
+        }
+      } finally {
+        if (!cancelled) setSessionsReady(true);
+      }
+    };
+
+    loadSurveySessions();
+    return () => { cancelled = true; };
+  }, [consultantMode]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -147,6 +213,7 @@ export default function Dashboard({ consultantMode = false }) {
           api.get(`/api/consultant/survey-sessions/${sessionId}/responses${query}`)
         ]);
         setCompany(contextRes.data.company);
+        setSelectedSessionContext(contextRes.data.session);
         setStats(statsRes.data);
         setResponses(respRes.data.responses);
         setTasks([]);
@@ -178,8 +245,69 @@ export default function Dashboard({ consultantMode = false }) {
   };
 
   useEffect(() => {
+    if (consultantMode && (!sessionsReady || !sessionId)) return;
     fetchData();
-  }, [filters, sessionId]);
+  }, [filters, sessionId, sessionsReady]);
+
+  const selectedSession = surveySessions.find((session) => String(session.id) === String(sessionId));
+  const compatibleSessions = selectedSession
+    ? surveySessions.filter((session) => (
+        session.id !== selectedSession.id
+        && session.company_id === selectedSession.company_id
+        && session.guide_type === selectedSession.guide_type
+      ))
+    : [];
+  const comparisonSession = compatibleSessions.find((session) => String(session.id) === String(comparisonSessionId));
+
+  useEffect(() => {
+    if (!compareEnabled || !comparisonSessionId || !comparisonSession) {
+      setComparisonStats(null);
+      setComparisonError("");
+      return;
+    }
+
+    let cancelled = false;
+    const loadComparison = async () => {
+      setComparisonLoading(true);
+      setComparisonError("");
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value) params.append(key, value);
+      });
+      const query = params.toString() ? `?${params.toString()}` : "";
+      try {
+        const response = await api.get(`/api/consultant/survey-sessions/${comparisonSessionId}/stats${query}`);
+        if (!cancelled) setComparisonStats(response.data);
+      } catch (err) {
+        if (!cancelled) {
+          console.error(err);
+          setComparisonStats(null);
+          setComparisonError("No fue posible cargar la encuesta de comparación.");
+        }
+      } finally {
+        if (!cancelled) setComparisonLoading(false);
+      }
+    };
+
+    loadComparison();
+    return () => { cancelled = true; };
+  }, [compareEnabled, comparisonSessionId, comparisonSession?.id, filters]);
+
+  useEffect(() => {
+    if (comparisonSessionId && !compatibleSessions.some((session) => String(session.id) === String(comparisonSessionId))) {
+      setComparisonSessionId("");
+      setComparisonStats(null);
+    }
+  }, [sessionId, surveySessions]);
+
+  const handleSessionChange = (event) => {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("session_id", event.target.value);
+    setSearchParams(nextParams);
+    setComparisonSessionId("");
+    setComparisonStats(null);
+    setFilters({ age_range: "", gender: "", department: "", position: "", start_date: "", end_date: "" });
+  };
 
   const handleFilterChange = (e) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
@@ -278,12 +406,20 @@ export default function Dashboard({ consultantMode = false }) {
     name,
     value
   }));
+  const comparisonPieData = Object.entries(comparisonStats?.final_risk_distribution || {}).map(([name, value]) => ({
+    name,
+    value
+  }));
+  const comparisonActive = Boolean(compareEnabled && comparisonSession && comparisonStats);
+  const primarySeriesLabel = selectedSession ? `Actual · ${formatSurveyDate(selectedSession)}` : "Puntaje";
+  const secondarySeriesLabel = comparisonSession ? `Comparación · ${formatSurveyDate(comparisonSession)}` : "Comparación";
 
   // Convert category averages to recharts format
   const barDataCategories = Object.entries(stats?.category_averages || {}).map(([name, value]) => ({
     name: name.length > 50 ? name.substring(0, 50) + "..." : name,
     fullName: name,
     Puntaje: value,
+    Comparativa: comparisonStats?.category_averages?.[name],
     Riesgo: stats?.category_risks?.[name] || "Nulo"
   }));
 
@@ -291,6 +427,7 @@ export default function Dashboard({ consultantMode = false }) {
     name: name.length > 50 ? name.substring(0, 50) + "..." : name,
     fullName: name,
     Puntaje: value,
+    Comparativa: comparisonStats?.domain_averages?.[name],
     Riesgo: stats?.domain_risks?.[name] || "Nulo"
   }));
 
@@ -298,6 +435,7 @@ export default function Dashboard({ consultantMode = false }) {
     name: name.length > 25 ? name.substring(0, 25) + "..." : name,
     fullName: name,
     Puntaje: value,
+    Comparativa: comparisonStats?.dimension_averages?.[name],
     Riesgo: stats?.dimension_risks?.[name] || "Nulo"
   }));
 
@@ -310,7 +448,7 @@ export default function Dashboard({ consultantMode = false }) {
       
       <main className="main-content">
         {/* Header */}
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <header className="results-header">
           <div>
             <h1 style={{ fontSize: "28px", fontWeight: "800", letterSpacing: "-0.02em" }}>Resultados NOM-035</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
@@ -325,7 +463,98 @@ export default function Dashboard({ consultantMode = false }) {
           </div>
         </header>
 
-        {sessionId && (
+        {consultantMode && selectedSession && (
+          <section className="survey-workspace-card" aria-label="Selección y datos de encuesta">
+            <div className="survey-workspace-topline">
+              <div>
+                <span className="survey-workspace-eyebrow">Encuesta seleccionada</span>
+                <h2>{selectedSession.company_name}</h2>
+              </div>
+              {surveySessions.length > 1 && (
+                <div className="survey-selector-field">
+                  <label htmlFor="survey-session-selector">Cambiar encuesta</label>
+                  <select
+                    id="survey-session-selector"
+                    className="form-input"
+                    value={sessionId || ""}
+                    onChange={handleSessionChange}
+                  >
+                    {surveySessions.map((session) => (
+                      <option key={session.id} value={session.id}>{sessionOptionLabel(session)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            <div className="survey-metadata-grid">
+              <div className="survey-metadata-item">
+                <Building2 size={18} />
+                <span><small>Empresa</small>{selectedSession.company_name}</span>
+              </div>
+              <div className="survey-metadata-item">
+                <FileCheck2 size={18} />
+                <span><small>Tipo</small>{GUIDE_LABELS[selectedSession.guide_type] || selectedSession.guide_type}</span>
+              </div>
+              <div className="survey-metadata-item">
+                <CalendarDays size={18} />
+                <span><small>Fecha</small>{formatSurveyDate({ ...selectedSession, ...selectedSessionContext })}</span>
+              </div>
+              <div className="survey-metadata-item">
+                <Users size={18} />
+                <span><small>Datos evaluados</small>{selectedSession.response_count} respuestas</span>
+              </div>
+            </div>
+
+            {compatibleSessions.length > 0 && (
+              <div className="survey-comparison-controls">
+                <label className="comparison-checkbox" htmlFor="compare-surveys">
+                  <input
+                    id="compare-surveys"
+                    type="checkbox"
+                    checked={compareEnabled}
+                    onChange={(event) => {
+                      setCompareEnabled(event.target.checked);
+                      if (!event.target.checked) {
+                        setComparisonSessionId("");
+                        setComparisonStats(null);
+                      }
+                    }}
+                  />
+                  <GitCompareArrows size={18} />
+                  Comparar con otra encuesta
+                </label>
+                {compareEnabled && (
+                  <div className="survey-selector-field comparison-selector">
+                    <label htmlFor="comparison-session-selector">Encuesta de comparación</label>
+                    <select
+                      id="comparison-session-selector"
+                      className="form-input"
+                      value={comparisonSessionId}
+                      onChange={(event) => setComparisonSessionId(event.target.value)}
+                    >
+                      <option value="">Selecciona una encuesta</option>
+                      {compatibleSessions.map((session) => (
+                        <option key={session.id} value={session.id}>{sessionOptionLabel(session)}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {compareEnabled && comparisonSession && (
+              <div className="comparison-legend" aria-live="polite">
+                <span><i className="comparison-dot comparison-dot--primary" />Actual: {formatSurveyDate(selectedSession)}</span>
+                <span><i className="comparison-dot comparison-dot--secondary" />Comparación: {formatSurveyDate(comparisonSession)}</span>
+                {comparisonLoading && <span className="comparison-loading">Cargando comparación…</span>}
+              </div>
+            )}
+            {comparisonError && <p className="comparison-error">{comparisonError}</p>}
+          </section>
+        )}
+
+        {sessionId && !consultantMode && (
           <div style={{
             display: "flex",
             alignItems: "center",
@@ -353,7 +582,7 @@ export default function Dashboard({ consultantMode = false }) {
               className="btn btn-secondary"
               style={{ padding: "6px 12px", fontSize: "12px" }}
             >
-              {consultantMode ? "Volver al panel del consultor" : "Ver todos los resultados (Quitar Filtro)"}
+              Ver todos los resultados (Quitar Filtro)
             </button>
           </div>
         )}
@@ -366,7 +595,7 @@ export default function Dashboard({ consultantMode = false }) {
         )}
 
         {/* Filter Bar */}
-        <div className="glass-card" style={{ padding: "16px", marginBottom: "24px", display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "center" }}>
+        <div className="glass-card filter-bar" style={{ padding: "16px", marginBottom: "24px", display: "flex", flexWrap: "wrap", gap: "16px", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--text-secondary)", fontWeight: "600", marginRight: "8px" }}>
             <Filter size={18} /> Filtros:
           </div>
@@ -422,6 +651,7 @@ export default function Dashboard({ consultantMode = false }) {
             <div>
               <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "500" }}>Total Encuestas Filtradas</span>
               <h3 style={{ fontSize: "24px", fontWeight: "800", marginTop: "2px" }}>{stats?.total_responses || 0}</h3>
+              {comparisonActive && <span className="kpi-comparison-value">Comparación: {comparisonStats.total_responses || 0}</span>}
             </div>
           </div>
 
@@ -456,6 +686,11 @@ export default function Dashboard({ consultantMode = false }) {
                   </span>
                 )}
               </div>
+              {comparisonActive && (
+                <span className="kpi-comparison-value">
+                  Comparación: {comparisonStats.global_score_average || 0} · {comparisonStats.global_score_risk || "Nulo"}
+                </span>
+              )}
             </div>
           </div>
 
@@ -468,6 +703,7 @@ export default function Dashboard({ consultantMode = false }) {
               <h3 style={{ fontSize: "24px", fontWeight: "800", marginTop: "2px", color: (stats?.requires_clinical_referral_count > 0) ? "var(--color-danger)" : "var(--text-primary)" }}>
                 {stats?.requires_clinical_referral_count || 0}
               </h3>
+              {comparisonActive && <span className="kpi-comparison-value">Comparación: {comparisonStats.requires_clinical_referral_count || 0}</span>}
             </div>
           </div>
 
@@ -476,11 +712,11 @@ export default function Dashboard({ consultantMode = false }) {
         {/* Charts Section */}
         {stats?.total_responses > 0 ? (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "24px", marginBottom: "24px" }}>
+            <div className="results-chart-grid" style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "24px", marginBottom: "24px" }}>
               {/* Pie Chart: Risk Distribution */}
               <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                 <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Riesgo Global en la Empresa</h3>
-                <div style={{ width: "100%", height: "260px" }}>
+                <div className={comparisonActive ? "risk-pies risk-pies--comparison" : "risk-pies"}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -500,6 +736,27 @@ export default function Dashboard({ consultantMode = false }) {
                       <Tooltip formatter={(value) => `${value}%`} />
                     </PieChart>
                   </ResponsiveContainer>
+                  {comparisonActive && (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={comparisonPieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={45}
+                          outerRadius={65}
+                          paddingAngle={5}
+                          dataKey="value"
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        >
+                          {comparisonPieData.map((entry, index) => (
+                            <Cell key={`comparison-cell-${index}`} fill={RISK_COLORS[entry.name] || "#ccc"} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(value) => `${value}%`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  )}
                 </div>
               </div>
 
@@ -513,11 +770,13 @@ export default function Dashboard({ consultantMode = false }) {
                       <XAxis type="number" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
                       <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" fontSize={11} tickLine={false} width={160} />
                       <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="Puntaje" radius={[0, 4, 4, 0]} barSize={20}>
-                        {barDataCategories.map((entry, index) => (
+                      {comparisonActive && <Legend />}
+                      <Bar dataKey="Puntaje" name={primarySeriesLabel} fill={comparisonActive ? "#4f46e5" : undefined} radius={[0, 4, 4, 0]} barSize={comparisonActive ? 12 : 20}>
+                        {!comparisonActive && barDataCategories.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={RISK_COLORS[entry.Riesgo] || "#cbd5e1"} />
                         ))}
                       </Bar>
+                      {comparisonActive && <Bar dataKey="Comparativa" name={secondarySeriesLabel} fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={12} />}
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -534,11 +793,13 @@ export default function Dashboard({ consultantMode = false }) {
                     <XAxis type="number" stroke="var(--text-secondary)" fontSize={12} tickLine={false} />
                     <YAxis dataKey="name" type="category" stroke="var(--text-secondary)" fontSize={12} tickLine={false} width={280} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="Puntaje" radius={[0, 4, 4, 0]} barSize={20}>
-                        {barDataDomains.map((entry, index) => (
+                      {comparisonActive && <Legend />}
+                      <Bar dataKey="Puntaje" name={primarySeriesLabel} fill={comparisonActive ? "#4f46e5" : undefined} radius={[0, 4, 4, 0]} barSize={comparisonActive ? 12 : 20}>
+                        {!comparisonActive && barDataDomains.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={RISK_COLORS[entry.Riesgo] || "#cbd5e1"} />
                         ))}
-                    </Bar>
+                      </Bar>
+                      {comparisonActive && <Bar dataKey="Comparativa" name={secondarySeriesLabel} fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={12} />}
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -546,7 +807,7 @@ export default function Dashboard({ consultantMode = false }) {
 
             {/* Dimensions Radar Chart & Heatmap */}
             {radarDataDimensions.length > 0 && (
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "24px", marginBottom: "24px" }}>
+              <div className="results-dimensions-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "24px", marginBottom: "24px" }}>
                 {/* Radar Chart */}
                 <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Huella de Riesgo por Dimensiones</h3>
@@ -557,7 +818,9 @@ export default function Dashboard({ consultantMode = false }) {
                         <PolarAngleAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} />
                         <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{ fill: "var(--text-muted)", fontSize: 10 }} />
                         <Tooltip content={<CustomTooltip />} />
-                        <Radar name="Riesgo" dataKey="Puntaje" stroke="var(--color-primary)" fill="var(--color-primary)" fillOpacity={0.3} />
+                        {comparisonActive && <Legend />}
+                        <Radar name={primarySeriesLabel} dataKey="Puntaje" stroke="#4f46e5" fill="#4f46e5" fillOpacity={0.22} />
+                        {comparisonActive && <Radar name={secondarySeriesLabel} dataKey="Comparativa" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.12} />}
                       </RadarChart>
                     </ResponsiveContainer>
                   </div>

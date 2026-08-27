@@ -1,5 +1,5 @@
 // frontend/src/components/Sidebar.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { 
   LayoutDashboard, 
@@ -12,13 +12,22 @@ import {
   Users,
   BookOpen,
   Plus,
-  Trash2
+  Trash2,
+  PanelLeftClose,
+  PanelLeftOpen
 } from "lucide-react";
 import api from "../utils/api";
 
 export default function Sidebar({ company }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem("sidebar_collapsed") === "true");
+
+  useEffect(() => {
+    const sidebarWidth = isCollapsed ? "84px" : "260px";
+    document.documentElement.style.setProperty("--sidebar-width", sidebarWidth);
+    localStorage.setItem("sidebar_collapsed", String(isCollapsed));
+  }, [isCollapsed]);
 
   const handleLogout = async () => {
     try {
@@ -122,12 +131,22 @@ export default function Sidebar({ company }) {
   ];
 
   return (
-    <aside className="sidebar">
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "32px", paddingBottom: "16px", borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+    <aside className={`sidebar${isCollapsed ? " sidebar--collapsed" : ""}`}>
+      <button
+        type="button"
+        className="sidebar-toggle"
+        onClick={() => setIsCollapsed((value) => !value)}
+        aria-label={isCollapsed ? "Expandir menú lateral" : "Contraer menú lateral"}
+        title={isCollapsed ? "Expandir menú" : "Contraer menú"}
+      >
+        {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+      </button>
+
+      <div className="sidebar-brand">
         {isSuperadmin ? (
           <>
             <Building size={28} style={{ color: "var(--color-primary)" }} />
-            <div>
+            <div className="sidebar-brand-copy">
               <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff" }}>
                 NOM-035 Admin
               </h2>
@@ -147,7 +166,7 @@ export default function Sidebar({ company }) {
             ) : (
               <Building size={28} style={{ color: "var(--color-primary)" }} />
             )}
-            <div>
+            <div className="sidebar-brand-copy">
               <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff" }}>
                 NOM-035 Consultor
               </h2>
@@ -167,7 +186,7 @@ export default function Sidebar({ company }) {
             ) : (
               <Building size={28} style={{ color: "var(--color-success)" }} />
             )}
-            <div>
+            <div className="sidebar-brand-copy">
               <h2 style={{ fontSize: "16px", fontWeight: "700", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", width: "160px" }}>
                 {company?.name || "Mi Empresa"}
               </h2>
@@ -188,6 +207,9 @@ export default function Sidebar({ company }) {
             <Link
               key={item.path}
               to={item.path}
+              className={`sidebar-nav-link${isActive ? " sidebar-nav-link--active" : ""}`}
+              aria-label={item.label}
+              title={isCollapsed ? item.label : undefined}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -204,7 +226,7 @@ export default function Sidebar({ company }) {
               }}
             >
               {item.icon}
-              {item.label}
+              <span className="sidebar-label">{item.label}</span>
             </Link>
           );
         })}
@@ -235,7 +257,7 @@ export default function Sidebar({ company }) {
             }}>
               {user.name ? user.name[0].toUpperCase() : "U"}
             </div>
-            <div style={{ overflow: "hidden", display: "flex", flexDirection: "column", flex: 1 }}>
+            <div className="sidebar-profile-copy" style={{ overflow: "hidden", flexDirection: "column", flex: 1 }}>
               <span style={{ fontSize: "13px", fontWeight: "600", color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={user.name}>
                 {user.name}
               </span>
@@ -245,6 +267,7 @@ export default function Sidebar({ company }) {
             </div>
             <button
               onClick={openProfileModal}
+              className="sidebar-profile-settings"
               style={{
                 background: "transparent",
                 border: "none",
@@ -268,6 +291,8 @@ export default function Sidebar({ company }) {
         
         <button
           onClick={handleLogout}
+          aria-label="Cerrar sesión"
+          title={isCollapsed ? "Cerrar sesión" : undefined}
           style={{
             display: "flex",
             alignItems: "center",
@@ -288,7 +313,7 @@ export default function Sidebar({ company }) {
           onMouseOut={(e) => e.currentTarget.style.backgroundColor = "transparent"}
         >
           <LogOut size={20} />
-          Cerrar Sesión
+          <span className="sidebar-label">Cerrar Sesión</span>
         </button>
       </div>
       {isProfileModalOpen && (
