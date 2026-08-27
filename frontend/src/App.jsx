@@ -174,6 +174,14 @@ export default function App() {
             </ConsultantRoute>
           }
         />
+        <Route
+          path="/consultant/action-plan"
+          element={
+            <ConsultantRoute>
+              <ActionPlanTracker />
+            </ConsultantRoute>
+          }
+        />
 
         {/* Protected Admin Dashboard Paths */}
         <Route 
@@ -207,6 +215,14 @@ export default function App() {
               <ActionPlanTracker />
             </ProtectedRoute>
           } 
+        />
+        <Route
+          path="/superadmin/action-plan"
+          element={
+            <SuperadminRoute>
+              <ActionPlanTracker />
+            </SuperadminRoute>
+          }
         />
         <Route 
           path="/trainings" 

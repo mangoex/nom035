@@ -30,6 +30,7 @@ class ActionPlanUpdate(BaseModel):
 class ActionPlanOut(BaseModel):
     id: int
     company_id: int
+    survey_session_id: Optional[int] = None
     category_flagged: Optional[str]
     domain_flagged: Optional[str]
     intervention_level: str
@@ -47,3 +48,13 @@ class ActionPlanOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ActionPlanPinVerify(BaseModel):
+    survey_session_id: int
+    pin: str = Field(pattern=r"^\d{4}$")
+
+
+class ActionPlanPinOut(BaseModel):
+    pin: str = Field(pattern=r"^\d{4}$")
+    survey_session_id: int

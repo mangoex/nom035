@@ -1,5 +1,6 @@
 // frontend/src/pages/ActionPlanTracker.jsx
 import React, { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { 
   Plus, 
   Trash2, 
@@ -24,6 +25,12 @@ const INTERVENTION_LABELS = {
 };
 
 export default function ActionPlanTracker() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const [sessions, setSessions] = useState([]);
+  const [selectedSessionId, setSelectedSessionId] = useState(searchParams.get("session_id") || "");
+  const [pin, setPin] = useState("");
+  const [pinRequired, setPinRequired] = useState(false);
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -43,17 +50,30 @@ export default function ActionPlanTracker() {
 
   const fetchData = async () => {
     try {
-      const [compRes, tasksRes, suggRes] = await Promise.all([
-        api.get("/api/company/me"),
-        api.get("/api/action_plan/tasks"),
-        api.get("/api/action_plan/suggested")
+      setError("");
+      const sessionsRes = await api.get("/api/action_plan/available-sessions");
+      setSessions(sessionsRes.data);
+      if (user?.role === "company_admin") {
+        const companyRes = await api.get("/api/company/me");
+        setCompany(companyRes.data);
+      }
+      if (!selectedSessionId) return;
+      const suffix = `?survey_session_id=${selectedSessionId}`;
+      const [tasksRes, suggRes] = await Promise.all([
+        api.get(`/api/action_plan/tasks${suffix}`),
+        api.get(`/api/action_plan/suggested${suffix}`),
       ]);
-      setCompany(compRes.data);
       setTasks(tasksRes.data);
       setSuggestions(suggRes.data.suggestions || []);
+      setPinRequired(false);
     } catch (err) {
-      console.error(err);
-      setError("Error al cargar los datos del plan de acción.");
+      if (err.response?.status === 403 && user?.role === "company_admin") {
+        setPinRequired(true);
+        setError("");
+      } else {
+        console.error(err);
+        setError(err.response?.data?.detail || "Error al cargar los datos del plan de acción.");
+      }
     } finally {
       setLoading(false);
     }
@@ -61,14 +81,40 @@ export default function ActionPlanTracker() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedSessionId]);
+
+  const selectSession = (id) => {
+    setSelectedSessionId(id);
+    setSearchParams(id ? { session_id: id } : {});
+    setTasks([]); setSuggestions([]); setError(""); setPinRequired(false);
+  };
+
+  const verifyPin = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("/api/action_plan/access/verify", { survey_session_id: Number(selectedSessionId), pin });
+      setPin(""); setError(""); setPinRequired(false); fetchData();
+    } catch (err) { setError(err.response?.data?.detail || "No se pudo verificar el PIN."); }
+  };
+
+  const actionUrl = (path) => `${path}?survey_session_id=${selectedSessionId}`;
+
+  const handleActionError = (err, fallbackMessage) => {
+    if (err.response?.status === 403 && user?.role === "company_admin") {
+      setPinRequired(true);
+      setError(err.response?.data?.detail || "El acceso por PIN debe renovarse.");
+      return;
+    }
+    console.error(err);
+    alert(err.response?.data?.detail || fallbackMessage);
+  };
 
   const handleCreateTask = async (e) => {
     e.preventDefault();
     if (!newTask.description.trim()) return;
 
     try {
-      const res = await api.post("/api/action_plan/tasks", newTask);
+      const res = await api.post(actionUrl("/api/action_plan/tasks"), newTask);
       setTasks([...tasks, res.data]);
       setShowModal(false);
       setNewTask({
@@ -78,8 +124,7 @@ export default function ActionPlanTracker() {
         due_date: ""
       });
     } catch (err) {
-      console.error(err);
-      alert("No se pudo crear la tarea.");
+      handleActionError(err, "No se pudo crear la tarea.");
     }
   };
 
@@ -88,7 +133,7 @@ export default function ActionPlanTracker() {
     if (!editingTask || !editingTask.description.trim()) return;
 
     try {
-      const res = await api.put(`/api/action_plan/tasks/${editingTask.id}`, {
+      const res = await api.put(actionUrl(`/api/action_plan/tasks/${editingTask.id}`), {
         intervention_level: editingTask.intervention_level,
         description: editingTask.description,
         assigned_to: editingTask.assigned_to || null,
@@ -97,35 +142,32 @@ export default function ActionPlanTracker() {
       setTasks(tasks.map(t => t.id === editingTask.id ? res.data : t));
       setEditingTask(null);
     } catch (err) {
-      console.error(err);
-      alert("No se pudo editar la tarea.");
+      handleActionError(err, "No se pudo editar la tarea.");
     }
   };
 
   const handleStatusChange = async (taskId, newStatus) => {
     try {
-      const res = await api.put(`/api/action_plan/tasks/${taskId}`, { status: newStatus });
+      const res = await api.put(actionUrl(`/api/action_plan/tasks/${taskId}`), { status: newStatus });
       setTasks(tasks.map(t => t.id === taskId ? res.data : t));
     } catch (err) {
-      console.error(err);
-      alert("No se pudo actualizar el estado de la tarea.");
+      handleActionError(err, "No se pudo actualizar el estado de la tarea.");
     }
   };
 
   const handleDeleteTask = async (taskId) => {
     if (!confirm("¿Está seguro de que desea eliminar esta tarea?")) return;
     try {
-      await api.delete(`/api/action_plan/tasks/${taskId}`);
+      await api.delete(actionUrl(`/api/action_plan/tasks/${taskId}`));
       setTasks(tasks.filter(t => t.id !== taskId));
     } catch (err) {
-      console.error(err);
-      alert("No se pudo eliminar la tarea.");
+      handleActionError(err, "No se pudo eliminar la tarea.");
     }
   };
 
   const handleAddSuggestion = async (sugg) => {
     try {
-      const res = await api.post("/api/action_plan/tasks", {
+      const res = await api.post(actionUrl("/api/action_plan/tasks"), {
         category_flagged: sugg.category_flagged,
         intervention_level: sugg.intervention_level,
         description: sugg.description,
@@ -135,8 +177,7 @@ export default function ActionPlanTracker() {
       setTasks([...tasks, res.data]);
       setSuggestions(suggestions.filter(s => s.description !== sugg.description));
     } catch (err) {
-      console.error(err);
-      alert("No se pudo agregar la recomendación.");
+      handleActionError(err, "No se pudo agregar la recomendación.");
     }
   };
 
@@ -155,10 +196,9 @@ export default function ActionPlanTracker() {
 
     // Persist API call
     try {
-      await api.put(`/api/action_plan/tasks/${taskId}`, { status: newStatus });
+      await api.put(actionUrl(`/api/action_plan/tasks/${taskId}`), { status: newStatus });
     } catch (err) {
-      console.error(err);
-      alert("No se pudo guardar el cambio de columna.");
+      handleActionError(err, "No se pudo guardar el cambio de columna.");
       // Rollback on fail
       setTasks(prevTasks => prevTasks.map(t => 
         t.id === taskId ? { ...t, status: source.droppableId } : t
@@ -169,17 +209,18 @@ export default function ActionPlanTracker() {
   const handleClearBoard = async () => {
     if (!confirm("⚠️ ATENCIÓN: Esta acción borrará permanentemente TODAS las tareas de tu Plan de Acción.\n\n¿Estás completamente seguro de continuar?")) return;
     try {
-      await api.delete("/api/action_plan/tasks/all");
+      await api.delete(actionUrl("/api/action_plan/tasks/all"));
       setTasks([]);
     } catch (err) {
-      console.error(err);
-      alert("No se pudo limpiar el tablero.");
+      handleActionError(err, "No se pudo limpiar el tablero.");
     }
   };
 
   const pendingTasks = tasks.filter(t => t.status === "pending");
   const inProgressTasks = tasks.filter(t => t.status === "in_progress");
   const completedTasks = tasks.filter(t => t.status === "completed");
+  const selectedSession = sessions.find((session) => String(session.id) === String(selectedSessionId));
+  const displayCompanyName = company?.name || selectedSession?.company_name || "la empresa seleccionada";
 
   const renderTaskCard = (task, index) => (
     <Draggable key={task.id} draggableId={`task-${task.id}`} index={index}>
@@ -282,19 +323,50 @@ export default function ActionPlanTracker() {
     </Draggable>
   );
 
+  if (loading) return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>Cargando plan de acción…</div>;
+
+  if (!selectedSessionId || pinRequired) {
+    return (
+      <div className="app-container">
+        <Sidebar company={company} />
+        <main className="main-content" style={{ maxWidth: "720px" }}>
+          <h1 style={{ fontSize: "28px", fontWeight: 800 }}>Plan de Acción</h1>
+          <p style={{ color: "var(--text-secondary)", marginBottom: "20px" }}>Selecciona los resultados de encuesta que deseas consultar. Las tareas se mantienen separadas por encuesta.</p>
+          <label className="form-label" htmlFor="action-plan-session">Empresa y encuesta</label>
+          <select id="action-plan-session" className="form-input" value={selectedSessionId} onChange={(e) => selectSession(e.target.value)}>
+            <option value="">Selecciona una encuesta</option>
+            {sessions.map((session) => <option key={session.id} value={session.id}>{session.company_name} · {session.guide_type} · {session.response_count} respuestas</option>)}
+          </select>
+          {selectedSessionId && user?.role === "company_admin" && (
+            !selectedSession?.has_responsible_consultant ? <p style={{ color: "var(--color-danger)", marginTop: "16px" }}>Esta empresa no tiene un consultor responsable asignado; no es posible generar el PIN de acceso.</p> : !selectedSession?.has_action_plan_pin ? <p style={{ color: "var(--text-secondary)", marginTop: "16px" }}>El consultor responsable aún no genera el PIN para esta encuesta.</p> : <form onSubmit={verifyPin} className="glass-card" style={{ marginTop: "20px", padding: "24px", maxWidth: "420px" }}>
+              <h2 style={{ fontSize: "18px", marginBottom: "8px" }}>Ingresa el PIN de tu consultor</h2>
+              <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "14px" }}>El PIN es de 4 dígitos y corresponde únicamente a esta encuesta.</p>
+              <input className="form-input" inputMode="numeric" pattern="[0-9]{4}" maxLength="4" required value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} placeholder="0000" aria-label="PIN de 4 dígitos" />
+              <button className="btn btn-primary" style={{ marginTop: "12px" }}>Desbloquear plan</button>
+            </form>
+          )}
+          {error && <p style={{ color: "var(--color-danger)", marginTop: "12px" }}>{error}</p>}
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="app-container">
       <Sidebar company={company} />
 
       <main className="main-content">
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+        <header className="action-plan-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
           <div>
             <h1 style={{ fontSize: "28px", fontWeight: "800", letterSpacing: "-0.02em" }}>Plan de Acción</h1>
             <p style={{ color: "var(--text-secondary)", fontSize: "14px" }}>
-              Gestión de tareas de intervención organizacional, grupal y clínica de {company?.name}
+              Gestión de tareas de intervención organizacional, grupal y clínica de {displayCompanyName}
             </p>
+            <select aria-label="Cambiar encuesta del plan de acción" className="form-input" style={{ marginTop: "10px", maxWidth: "420px" }} value={selectedSessionId} onChange={(e) => selectSession(e.target.value)}>
+              {sessions.map((session) => <option key={session.id} value={session.id}>{session.company_name} · {session.guide_type} · {session.response_count} respuestas</option>)}
+            </select>
           </div>
-          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <div className="action-plan-header-actions" style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <button onClick={handleClearBoard} className="btn btn-secondary" style={{ color: "var(--color-danger)", borderColor: "var(--color-danger)", backgroundColor: "transparent" }}>
               <Trash2 size={16} /> Limpiar Tablero
             </button>

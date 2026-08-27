@@ -10,7 +10,6 @@ import {
   Building,
   Settings,
   Users,
-  BookOpen,
   Plus,
   Trash2,
   PanelLeftClose,
@@ -114,8 +113,10 @@ export default function Sidebar({ company }) {
   const navItems = isSuperadmin ? [
     { path: "/superadmin/companies", label: "Empresas", icon: <Building size={20} /> },
     { path: "/superadmin/consultants", label: "Consultores", icon: <Users size={20} /> },
+    { path: "/superadmin/action-plan", label: "Plan de Acción", icon: <Kanban size={20} /> },
   ] : isConsultant ? [
     { path: "/consultant/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
+    { path: "/consultant/action-plan", label: "Plan de Acción", icon: <Kanban size={20} /> },
     { path: "/consultant/companies", label: "Empresas", icon: <Building size={20} /> },
     { path: "/consultant/users", label: "Usuarios", icon: <Users size={20} /> },
     ...(user?.is_senior ? [
@@ -125,7 +126,6 @@ export default function Sidebar({ company }) {
     { path: "/dashboard", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
     { path: "/intake", label: "Captura de Datos", icon: <ClipboardList size={20} /> },
     { path: "/action-plan", label: "Plan de Acción", icon: <Kanban size={20} /> },
-    { path: "/trainings", label: "Capacitaciones", icon: <BookOpen size={20} /> },
     { path: "/documents", label: "Gestión Documental", icon: <FileText size={20} /> },
     { path: "/settings", label: "Cuenta", icon: <Settings size={20} /> },
   ];

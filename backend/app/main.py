@@ -19,6 +19,7 @@ SCHEMA_COLUMNS = {
     "action_plans": {
         "assigned_to": "VARCHAR",
         "impacted_dimensions": "JSON",
+        "survey_session_id": "INTEGER",
     },
     "companies": {
         "logo_url": "VARCHAR",
@@ -51,6 +52,10 @@ SCHEMA_COLUMNS = {
         "fecha_fin": "DATE",
         "clave_secreta": "VARCHAR",
         "consultant_access_enabled": "BOOLEAN DEFAULT FALSE NOT NULL",
+        "action_plan_pin_hash": "VARCHAR",
+        "action_plan_pin_attempts": "INTEGER DEFAULT 0 NOT NULL",
+        "action_plan_pin_locked_until": "DATETIME",
+        "action_plan_pin_version": "INTEGER DEFAULT 0 NOT NULL",
     },
 }
 
@@ -65,7 +70,10 @@ SCHEMA_INDEXES = {
         "ix_survey_responses_company_id": "company_id",
         "ix_survey_responses_survey_session_id": "survey_session_id",
     },
-    "action_plans": {"ix_action_plans_company_id": "company_id"},
+    "action_plans": {
+        "ix_action_plans_company_id": "company_id",
+        "ix_action_plans_survey_session_id": "survey_session_id",
+    },
 }
 
 

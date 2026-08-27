@@ -10,7 +10,11 @@ import {
   Database,
   RefreshCw,
   Eye,
-  Download
+  Download,
+  KeyRound,
+  Kanban,
+  Copy,
+  X
 } from "lucide-react";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
@@ -22,6 +26,7 @@ export default function ConsultantDashboard() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [generatedPin, setGeneratedPin] = useState(null);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -62,6 +67,24 @@ export default function ConsultantDashboard() {
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.detail || "No se pudo descargar el archivo Excel.");
+    }
+  };
+
+  const handleGeneratePin = async (session) => {
+    try {
+      const res = await api.post(`/api/consultant/survey-sessions/${session.id}/action-plan-pin`);
+      setGeneratedPin({ pin: res.data.pin, session });
+      fetchStats();
+    } catch (err) {
+      alert(err.response?.data?.detail || "No se pudo generar el PIN.");
+    }
+  };
+
+  const copyGeneratedPin = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedPin.pin);
+    } catch {
+      alert(`PIN: ${generatedPin.pin}`);
     }
   };
 
@@ -262,6 +285,22 @@ export default function ConsultantDashboard() {
                               Ver Resultados
                             </button>
                             <button
+                              onClick={() => navigate(`/consultant/action-plan?session_id=${session.id}`)}
+                              className="btn btn-secondary"
+                              style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px", alignItems: "center" }}
+                            >
+                              <Kanban size={14} /> Plan
+                            </button>
+                            <button
+                              onClick={() => handleGeneratePin(session)}
+                              disabled={!session.response_count}
+                              title={session.response_count ? "Generar o regenerar PIN del Plan de Acción" : "Disponible cuando existan resultados"}
+                              className="btn btn-secondary"
+                              style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px", alignItems: "center" }}
+                            >
+                              <KeyRound size={14} /> PIN
+                            </button>
+                            <button
                               onClick={() => handleDownloadExcel(session)}
                               className="btn btn-secondary"
                               style={{ padding: "6px 12px", fontSize: "12px", display: "inline-flex", gap: "6px", alignItems: "center" }}
@@ -279,6 +318,28 @@ export default function ConsultantDashboard() {
             </table>
           </div>
         </div>
+
+        {generatedPin && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "grid", placeItems: "center", padding: "20px", background: "rgba(15, 23, 42, 0.58)", backdropFilter: "blur(3px)" }}>
+            <div className="glass-card" role="dialog" aria-modal="true" aria-labelledby="generated-pin-title" style={{ width: "min(100%, 440px)", padding: "26px", position: "relative" }}>
+              <button type="button" onClick={() => setGeneratedPin(null)} aria-label="Cerrar PIN" className="btn btn-secondary" style={{ position: "absolute", top: "14px", right: "14px", width: "34px", height: "34px", padding: 0, justifyContent: "center" }}>
+                <X size={17} />
+              </button>
+              <KeyRound size={28} style={{ color: "var(--color-primary)", marginBottom: "12px" }} />
+              <h2 id="generated-pin-title" style={{ fontSize: "20px", marginBottom: "8px" }}>PIN del Plan de Acción</h2>
+              <p style={{ color: "var(--text-secondary)", fontSize: "13px", lineHeight: 1.55 }}>
+                Compártelo con {generatedPin.session.company_name}. Corresponde sólo a esta encuesta y dejará de ser válido si generas uno nuevo.
+              </p>
+              <div style={{ margin: "20px 0", padding: "16px", borderRadius: "var(--radius-md)", background: "var(--bg-secondary)", color: "var(--text-primary)", textAlign: "center", fontSize: "34px", fontWeight: 800, letterSpacing: "0.28em", fontVariantNumeric: "tabular-nums" }}>
+                {generatedPin.pin}
+              </div>
+              <button type="button" onClick={copyGeneratedPin} className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }}>
+                <Copy size={16} /> Copiar PIN
+              </button>
+              <p style={{ marginTop: "12px", color: "var(--text-muted)", fontSize: "11px", textAlign: "center" }}>Por seguridad, el PIN sólo se muestra en este momento.</p>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

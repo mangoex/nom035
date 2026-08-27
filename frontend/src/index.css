@@ -751,6 +751,9 @@ body {
   .filter-bar > button { width: 100%; justify-content: center; margin-left: 0 !important; }
   .suggested-action-main { align-items: flex-start; flex-direction: column; }
   .suggested-action-main .btn { width: 100%; justify-content: center; }
+  .action-plan-header { align-items: stretch !important; flex-direction: column; gap: 16px; }
+  .action-plan-header-actions { width: 100%; flex-wrap: wrap; }
+  .action-plan-header-actions .btn { flex: 1 1 130px; justify-content: center; }
 }
 
 /* Components Styling */

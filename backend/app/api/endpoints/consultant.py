@@ -1,5 +1,7 @@
 # backend/app/api/endpoints/consultant.py
-from fastapi import APIRouter, Depends, HTTPException, status
+import secrets
+import bcrypt
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
@@ -7,6 +9,7 @@ from typing import List, Optional
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company, SurveySession, SurveyResponse
 from backend.app.schemas.company import CompanyOut, CompanyCreate, CompanyUpdate
+from backend.app.schemas.action_plan import ActionPlanPinOut
 from backend.app.schemas.auth import (
     ConsultantUserCreate,
     ConsultantUserUpdate,
@@ -17,7 +20,7 @@ from backend.app.schemas.auth import (
 from backend.app.core.auth import (
     get_current_consultant,
     get_current_senior_consultant,
-    get_password_hash
+    get_password_hash, action_plan_pin_secret
 )
 from backend.app.core.company_utils import normalize_departments
 from backend.app.api.endpoints.survey import (
@@ -27,6 +30,34 @@ from backend.app.api.endpoints.survey import (
 )
 
 router = APIRouter()
+
+
+@router.post("/survey-sessions/{session_id}/action-plan-pin", response_model=ActionPlanPinOut)
+def generate_action_plan_pin(
+    session_id: int,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_consultant),
+):
+    """Creates a replacement PIN and returns it once to the responsible consultant."""
+    survey_session = db.query(SurveySession).join(Company).filter(
+        SurveySession.id == session_id,
+        SurveySession.consultant_access_enabled == True,
+        SurveySession.guide_type.in_(["GUIA_II", "GUIA_III"]),
+        Company.consultant_id == current_user.id,
+    ).with_for_update().first()
+    if not survey_session:
+        raise HTTPException(status_code=404, detail="Encuesta no encontrada o no pertenece a su consultoría.")
+    if not db.query(SurveyResponse.id).filter(SurveyResponse.survey_session_id == survey_session.id).first():
+        raise HTTPException(status_code=400, detail="El PIN sólo puede generarse cuando la encuesta tenga resultados.")
+    pin = f"{secrets.randbelow(10_000):04d}"
+    survey_session.action_plan_pin_hash = bcrypt.hashpw(action_plan_pin_secret(pin), bcrypt.gensalt()).decode("utf-8")
+    survey_session.action_plan_pin_attempts = 0
+    survey_session.action_plan_pin_locked_until = None
+    survey_session.action_plan_pin_version = (survey_session.action_plan_pin_version or 0) + 1
+    db.commit()
+    response.headers["Cache-Control"] = "no-store"
+    return {"pin": pin, "survey_session_id": survey_session.id}
 
 
 def consultant_consumed_credits(db: Session, consultant_id: int) -> int:

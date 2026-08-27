@@ -6,9 +6,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from backend.app.api.endpoints.action_plan import build_impacted_dimensions
+from backend.app.api.endpoints.action_plan import build_impacted_dimensions, get_action_plan_context
 from backend.app.core.auth import get_current_admin
-from backend.app.db.models import ActionPlan, Company, SurveyResponse, User
+from backend.app.db.models import ActionPlan, Company, SurveyResponse, SurveySession, User
 from backend.app.db.session import Base, get_db
 from backend.app.main import app
 
@@ -50,18 +50,22 @@ def client_fixture(session):
         company_id=company.id,
     )
     session.add(admin)
+    survey_session = SurveySession(
+        company_id=company.id, guide_type="GUIA_II", link_hash="dimensions-session"
+    )
+    session.add(survey_session)
     session.commit()
 
     def override_get_db():
         yield session
 
-    def override_get_current_admin():
-        return admin
+    def override_action_plan_context():
+        return admin, survey_session, company.id
 
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_admin] = override_get_current_admin
+    app.dependency_overrides[get_action_plan_context] = override_action_plan_context
     try:
-        yield TestClient(app), company
+        yield TestClient(app), company, survey_session
     finally:
         app.dependency_overrides.clear()
 
@@ -97,9 +101,10 @@ def test_build_impacted_dimensions_uses_only_dimensions_related_to_source_catego
 
 
 def test_suggestions_include_dimensions_and_tasks_persist_them(client, session):
-    test_client, company = client
+    test_client, company, survey_session = client
     session.add(SurveyResponse(
         company_id=company.id,
+        survey_session_id=survey_session.id,
         demographics={"department": "Operaciones"},
         answers={},
         calculated_scores={
@@ -113,7 +118,7 @@ def test_suggestions_include_dimensions_and_tasks_persist_them(client, session):
     ))
     session.commit()
 
-    suggestions_response = test_client.get("/api/action_plan/suggested")
+    suggestions_response = test_client.get(f"/api/action_plan/suggested?survey_session_id={survey_session.id}")
     assert suggestions_response.status_code == 200
     suggestion = suggestions_response.json()["suggestions"][0]
     assert [dimension["name"] for dimension in suggestion["impacted_dimensions"]] == [
@@ -121,7 +126,7 @@ def test_suggestions_include_dimensions_and_tasks_persist_them(client, session):
         "Carga mental",
     ]
 
-    create_response = test_client.post("/api/action_plan/tasks", json={
+    create_response = test_client.post(f"/api/action_plan/tasks?survey_session_id={survey_session.id}", json={
         "category_flagged": suggestion["category_flagged"],
         "intervention_level": suggestion["intervention_level"],
         "description": suggestion["description"],
@@ -133,3 +138,4 @@ def test_suggestions_include_dimensions_and_tasks_persist_them(client, session):
 
     stored_task = session.query(ActionPlan).one()
     assert stored_task.impacted_dimensions == suggestion["impacted_dimensions"]
+    assert stored_task.survey_session_id == survey_session.id

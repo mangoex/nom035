@@ -89,6 +89,12 @@ class SurveySession(Base):
     fecha_fin = Column(Date, nullable=True)
     clave_secreta = Column(String, nullable=True)
     consultant_access_enabled = Column(Boolean, default=False, nullable=False)
+    # The PIN is only used to unlock the action plan for this exact survey.
+    # Never persist the readable PIN.
+    action_plan_pin_hash = Column(String, nullable=True)
+    action_plan_pin_attempts = Column(Integer, default=0, nullable=False)
+    action_plan_pin_locked_until = Column(DateTime, nullable=True)
+    action_plan_pin_version = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     # Relationships
@@ -128,6 +134,8 @@ class ActionPlan(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Nullable preserves action plans created before plans were tied to a survey.
+    survey_session_id = Column(Integer, ForeignKey("survey_sessions.id", ondelete="CASCADE"), nullable=True, index=True)
     category_flagged = Column(String, nullable=True)
     domain_flagged = Column(String, nullable=True)
     intervention_level = Column(String, nullable=False)  # 'first_level', 'second_level', 'third_level'

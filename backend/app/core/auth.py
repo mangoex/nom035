@@ -1,5 +1,7 @@
 # backend/app/core/auth.py
 import os
+import hashlib
+import hmac
 from datetime import datetime, timedelta
 import jwt
 import bcrypt
@@ -28,6 +30,11 @@ def get_password_hash(password: str) -> str:
         password.encode("utf-8"),
         bcrypt.gensalt()
     ).decode("utf-8")
+
+
+def action_plan_pin_secret(pin: str) -> bytes:
+    """Pepper low-entropy action-plan PINs before bcrypt storage/checking."""
+    return hmac.new(SECRET_KEY.encode("utf-8"), pin.encode("utf-8"), hashlib.sha256).digest()
 
 def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
     to_encode = data.copy()

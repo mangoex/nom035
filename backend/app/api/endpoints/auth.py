@@ -111,6 +111,7 @@ def login(user_in: UserLogin, response: Response, request: Request, db: Session 
 @router.post("/logout")
 def logout(response: Response):
     response.delete_cookie(key="access_token", path="/")
+    response.delete_cookie(key="action_plan_access", path="/api/action_plan")
     return {"message": "Sesión cerrada correctamente."}
 
 @router.get("/me", response_model=UserOut)

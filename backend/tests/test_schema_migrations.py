@@ -3,7 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
-from backend.app.db.models import Company, User
+from backend.app.db.models import ActionPlan, Company, User
 from backend.app.main import app, run_schema_migrations
 from backend.app.core.auth import get_current_superadmin
 from backend.app.db.session import get_db
@@ -48,6 +48,10 @@ def _create_legacy_schema(engine):
             "INSERT INTO companies (id, name, rfc, employee_count, active_guide, consultant_id, created_at) "
             "VALUES (1, 'Empresa existente', 'AAA010101AAA', 10, 'GUIA_II', 1, CURRENT_TIMESTAMP)"
         ))
+        connection.execute(text(
+            "INSERT INTO action_plans (id, company_id, intervention_level, status, description, created_at) "
+            "VALUES (1, 1, 'first_level', 'pending', 'Plan histórico', CURRENT_TIMESTAMP)"
+        ))
 
 
 def test_migrates_legacy_sqlite_before_loading_companies_and_consultants():
@@ -69,8 +73,13 @@ def test_migrates_legacy_sqlite_before_loading_companies_and_consultants():
     user_columns = {column["name"] for column in inspect(engine).get_columns("users")}
     user_indexes = {index["name"] for index in inspect(engine).get_indexes("users")}
     action_plan_columns = {column["name"] for column in inspect(engine).get_columns("action_plans")}
+    action_plan_indexes = {index["name"] for index in inspect(engine).get_indexes("action_plans")}
+    survey_session_columns = {column["name"] for column in inspect(engine).get_columns("survey_sessions")}
     assert {"is_senior", "parent_consultant_id"} <= user_columns
     assert "impacted_dimensions" in action_plan_columns
+    assert "survey_session_id" in action_plan_columns
+    assert "ix_action_plans_survey_session_id" in action_plan_indexes
+    assert {"action_plan_pin_hash", "action_plan_pin_version"} <= survey_session_columns
     assert "ix_users_parent_consultant_id" in user_indexes
 
     session = sessionmaker(bind=engine)()
@@ -81,6 +90,9 @@ def test_migrates_legacy_sqlite_before_loading_companies_and_consultants():
         assert consultant.name == "Consultor existente"
         assert consultant.is_senior is False
         assert consultant.parent_consultant_id is None
+        legacy_plan = session.query(ActionPlan).one()
+        assert legacy_plan.description == "Plan histórico"
+        assert legacy_plan.survey_session_id is None
 
         superadmin = User(
             name="Administrador",

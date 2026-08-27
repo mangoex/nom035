@@ -1,4 +1,4 @@
-# Design QA — Resultados y Plan de Acción
+# Design QA — Resultados, Plan de Acción y acceso por PIN
 
 ## Referencias y fidelidad
 
@@ -17,10 +17,16 @@
 - Alta de una recomendación en “Por Hacer”; las dimensiones permanecen asociadas y se muestran también en la tarjeta creada.
 - Vista de escritorio a 1384 × 887 y vista móvil a 390 × 844; tablero en una columna y sin desbordamiento horizontal.
 - Consola del navegador sin errores ni solicitudes fallidas durante el recorrido funcional.
+- Menú de empresa sin la opción “Capacitaciones”; Plan de Acción visible para empresa, consultor y administrador general.
+- Consultor responsable: generación/regeneración de PIN desde cada encuesta con resultados, visualización única y acción para copiar.
+- Empresa: selección de encuesta, estado sin consultor, estado con PIN pendiente, formulario de cuatro dígitos y desbloqueo del plan correcto.
+- Aislamiento: el permiso de una encuesta no desbloquea otra y las tareas permanecen separadas por `survey_session_id`.
+- Administrador general y consultor responsable: acceso directo sin PIN, conservando selección explícita de empresa y encuesta.
+- Vista móvil a 390 × 844: encabezado y acciones se reorganizan sin recortar botones ni producir desbordamiento horizontal.
 
 ## Verificación técnica
 
-- Pruebas backend: 28 aprobadas.
+- Pruebas backend: 33 aprobadas.
 - ESLint: aprobado.
 - Compilación de producción Vite: aprobada.
 - Recorrido funcional con datos temporales de Guía II: aprobado.
