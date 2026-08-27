@@ -8,176 +8,91 @@ from fastapi.staticfiles import StaticFiles
 from backend.app.db.session import engine, Base
 from backend.app.api.endpoints import auth, company, survey, action_plan, superadmin, consultant
 
-from sqlalchemy import text
+from sqlalchemy import inspect, text
+
+
+# Additive schema changes for databases created by earlier releases.  These are
+# deliberately checked before executing DDL: PostgreSQL marks a transaction as
+# failed after a duplicate-column error, so catching that error would prevent
+# every migration that follows from running.
+SCHEMA_COLUMNS = {
+    "action_plans": {
+        "assigned_to": "VARCHAR",
+    },
+    "companies": {
+        "logo_url": "VARCHAR",
+        "policy_text": "VARCHAR",
+        "policy_pdf_url": "VARCHAR",
+        "consultant_id": "INTEGER",
+        "address": "VARCHAR",
+        "phone": "VARCHAR",
+        "main_activity": "VARCHAR",
+        "departments": "JSON",
+    },
+    "users": {
+        "cedula_profesional": "VARCHAR",
+        "creditos": "INTEGER DEFAULT 0",
+        "logo_url": "VARCHAR",
+        "cedula_image_url": "VARCHAR",
+        "is_active": "BOOLEAN DEFAULT TRUE NOT NULL",
+        "is_senior": "BOOLEAN DEFAULT FALSE NOT NULL",
+        "parent_consultant_id": "INTEGER",
+        "billing_paid": "BOOLEAN DEFAULT FALSE NOT NULL",
+        "billing_due_date": "DATE",
+        "billing_amount": "INTEGER DEFAULT 0",
+        "billing_history": "JSON",
+        "capacitaciones": "JSON",
+    },
+    "survey_sessions": {
+        "recopilador": "VARCHAR",
+        "creador": "VARCHAR",
+        "cedula_creador": "VARCHAR",
+        "fecha_fin": "DATE",
+        "clave_secreta": "VARCHAR",
+        "consultant_access_enabled": "BOOLEAN DEFAULT FALSE NOT NULL",
+    },
+}
+
+SCHEMA_INDEXES = {
+    "companies": {"ix_companies_consultant_id": "consultant_id"},
+    "users": {
+        "ix_users_company_id": "company_id",
+        "ix_users_parent_consultant_id": "parent_consultant_id",
+    },
+    "survey_sessions": {"ix_survey_sessions_company_id": "company_id"},
+    "survey_responses": {
+        "ix_survey_responses_company_id": "company_id",
+        "ix_survey_responses_survey_session_id": "survey_session_id",
+    },
+    "action_plans": {"ix_action_plans_company_id": "company_id"},
+}
+
+
+def run_schema_migrations(database_engine):
+    """Apply outstanding additive migrations atomically on SQLite or PostgreSQL."""
+    with database_engine.begin() as conn:
+        inspector = inspect(conn)
+        for table, columns in SCHEMA_COLUMNS.items():
+            existing_columns = {column["name"] for column in inspector.get_columns(table)}
+            for column, definition in columns.items():
+                if column not in existing_columns:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {definition}"))
+                    existing_columns.add(column)
+
+        # Refresh inspection after ALTER TABLE statements before creating indexes.
+        inspector = inspect(conn)
+        for table, indexes in SCHEMA_INDEXES.items():
+            existing_indexes = {index["name"] for index in inspector.get_indexes(table)}
+            columns = {column["name"] for column in inspector.get_columns(table)}
+            for index, column in indexes.items():
+                if index not in existing_indexes and column in columns:
+                    conn.execute(text(f"CREATE INDEX {index} ON {table} ({column})"))
 
 # Bootstrap database tables
 Base.metadata.create_all(bind=engine)
 
-# Auto-migrate production database (safe to run on startup)
-try:
-    with engine.begin() as conn:
-        # Add assigned_to column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE action_plans ADD COLUMN assigned_to VARCHAR"))
-        except Exception:
-            pass
-
-        # Add logo_url column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE companies ADD COLUMN logo_url VARCHAR"))
-        except Exception:
-            pass
-            
-        # Add policy_text column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE companies ADD COLUMN policy_text VARCHAR"))
-        except Exception:
-            pass
-            
-        # Add policy_pdf_url column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE companies ADD COLUMN policy_pdf_url VARCHAR"))
-        except Exception:
-            pass
-
-        # Add consultant_id column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE companies ADD COLUMN consultant_id INTEGER"))
-        except Exception:
-            pass
-
-        # Add index for consultant_id if it doesn't exist
-        try:
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_companies_consultant_id ON companies (consultant_id)"))
-        except Exception:
-            pass
-
-        # Add cedula_profesional column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN cedula_profesional VARCHAR"))
-        except Exception:
-            pass
-
-        # Add creditos column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN creditos INTEGER DEFAULT 0"))
-        except Exception:
-            pass
-
-        # Add logo_url to users column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN logo_url VARCHAR"))
-        except Exception:
-            pass
-
-        # Add cedula_image_url to users column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN cedula_image_url VARCHAR"))
-        except Exception:
-            pass
-
-        # Add active/billing columns for consultant access control
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT 1 NOT NULL"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN billing_paid BOOLEAN DEFAULT 0 NOT NULL"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN billing_due_date DATE"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN billing_amount INTEGER DEFAULT 0"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN billing_history JSON"))
-        except Exception:
-            pass
-
-
-        # Add capacitaciones to users column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE users ADD COLUMN capacitaciones JSON"))
-        except Exception:
-            pass
-
-        # Add address to companies column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE companies ADD COLUMN address VARCHAR"))
-        except Exception:
-            pass
-
-        # Add phone to companies column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE companies ADD COLUMN phone VARCHAR"))
-        except Exception:
-            pass
-
-        # Add main_activity to companies column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE companies ADD COLUMN main_activity VARCHAR"))
-        except Exception:
-            pass
-
-        # Add departments to companies column if it doesn't exist
-        try:
-            conn.execute(text("ALTER TABLE companies ADD COLUMN departments JSON"))
-        except Exception:
-            pass
-
-        # Add columns to survey_sessions if they don't exist
-        try:
-            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN recopilador VARCHAR"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN creador VARCHAR"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN cedula_creador VARCHAR"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN fecha_fin DATE"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN clave_secreta VARCHAR"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("ALTER TABLE survey_sessions ADD COLUMN consultant_access_enabled BOOLEAN DEFAULT 0 NOT NULL"))
-        except Exception:
-            pass
-
-        # Create indexes if they don't exist (works for both SQLite and PostgreSQL)
-        try:
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_users_company_id ON users (company_id)"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_survey_sessions_company_id ON survey_sessions (company_id)"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_survey_responses_company_id ON survey_responses (company_id)"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_survey_responses_survey_session_id ON survey_responses (survey_session_id)"))
-        except Exception:
-            pass
-        try:
-            conn.execute(text("CREATE INDEX IF NOT EXISTS ix_action_plans_company_id ON action_plans (company_id)"))
-        except Exception:
-            pass
-except Exception as e:
-    print("Auto-migration skipped or failed:", e)
+# Auto-migrate production database before any ORM query loads the new fields.
+run_schema_migrations(engine)
 
 # Auto-create superadmin if none exists
 try:
