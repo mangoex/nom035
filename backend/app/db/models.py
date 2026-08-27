@@ -62,7 +62,17 @@ class User(Base):
 
     # Relationships
     company = relationship("Company", back_populates="users", foreign_keys=[company_id])
-    sub_consultants = relationship("User", foreign_keys=[parent_consultant_id], backref="parent_consultant", remote_side=[id])
+    parent_consultant = relationship(
+        "User",
+        remote_side=[id],
+        foreign_keys=[parent_consultant_id],
+        back_populates="sub_consultants",
+    )
+    sub_consultants = relationship(
+        "User",
+        foreign_keys=[parent_consultant_id],
+        back_populates="parent_consultant",
+    )
 
 
 class SurveySession(Base):

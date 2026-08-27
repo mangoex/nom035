@@ -8,11 +8,31 @@ from typing import List
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company
 from backend.app.schemas.company import CompanyOut, CompanyCreate, CompanyUpdate
-from backend.app.schemas.superadmin import ConsultantBillingUpdate, ConsultantCreate, ConsultantUpdate, ConsultantOut
+from backend.app.schemas.superadmin import ConsultantBillingUpdate, ConsultantCreate, ConsultantUpdate, ConsultantOut, SeniorStatusUpdate
 from backend.app.core.auth import get_current_superadmin, get_password_hash
 from backend.app.core.company_utils import normalize_departments
 
 router = APIRouter()
+
+
+def ensure_senior_has_no_sub_consultants(db: Session, consultant: User):
+    """Prevent administrative changes that would orphan a senior's juniors."""
+    if db.query(User.id).filter(
+        User.parent_consultant_id == consultant.id,
+        User.role == "consultor",
+    ).first():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Este Consultor Senior tiene subconsultores asignados. Reasígnelos o elimínelos antes de cambiar su estado.",
+        )
+
+
+def ensure_not_sub_consultant_for_senior(consultant: User, requested_senior: bool):
+    if requested_senior and consultant.parent_consultant_id is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Un subconsultor no puede ser designado Consultor Senior mientras tenga un consultor padre.",
+        )
 
 # --- COMPANY MANAGEMENT ---
 
@@ -168,6 +188,15 @@ def update_consultant(
             detail="Consultor no encontrado."
         )
 
+    # Validate state transitions before mutating any field so rejected mixed
+    # payloads cannot be autoflushed with partial administrative changes.
+    if consultant_in.is_senior is not None:
+        ensure_not_sub_consultant_for_senior(user, consultant_in.is_senior)
+        if not consultant_in.is_senior:
+            ensure_senior_has_no_sub_consultants(db, user)
+    if consultant_in.is_active is False:
+        ensure_senior_has_no_sub_consultants(db, user)
+
     if consultant_in.name is not None:
         user.name = consultant_in.name
     if consultant_in.email is not None:
@@ -200,7 +229,7 @@ def update_consultant(
 @router.put("/consultants/{user_id}/senior-status", response_model=ConsultantOut)
 def update_consultant_senior_status(
     user_id: int,
-    senior_in: dict,
+    senior_in: SeniorStatusUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_superadmin)
 ):
@@ -211,7 +240,10 @@ def update_consultant_senior_status(
             detail="Consultor no encontrado."
         )
 
-    user.is_senior = bool(senior_in.get("is_senior", False))
+    ensure_not_sub_consultant_for_senior(user, senior_in.is_senior)
+    if not senior_in.is_senior:
+        ensure_senior_has_no_sub_consultants(db, user)
+    user.is_senior = senior_in.is_senior
     db.commit()
     db.refresh(user)
     return user
@@ -252,6 +284,11 @@ def delete_consultant(
             detail="Consultor no encontrado."
         )
 
+    ensure_senior_has_no_sub_consultants(db, user)
+    # Legacy SQLite schemas may not have the ORM foreign key; preserve data explicitly.
+    db.query(Company).filter(Company.consultant_id == user.id).update(
+        {Company.consultant_id: None}, synchronize_session=False
+    )
     db.delete(user)
     db.commit()
     return {"message": "Consultor eliminado exitosamente."}

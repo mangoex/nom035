@@ -2,6 +2,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company, SurveySession, SurveyResponse
@@ -26,6 +27,36 @@ from backend.app.api.endpoints.survey import (
 )
 
 router = APIRouter()
+
+
+def consultant_consumed_credits(db: Session, consultant_id: int) -> int:
+    """Responses belonging to the consultant's own companies consume quota."""
+    return db.query(SurveyResponse).join(
+        Company, SurveyResponse.company_id == Company.id
+    ).filter(Company.consultant_id == consultant_id).count()
+
+
+def consultant_available_credits(db: Session, consultant: User) -> int:
+    return max(0, (consultant.creditos or 0) - consultant_consumed_credits(db, consultant.id))
+
+
+def locked_consultant(db: Session, consultant_id: int) -> User:
+    # PostgreSQL locks the quota row; SQLite safely ignores FOR UPDATE.
+    return db.query(User).filter(User.id == consultant_id).with_for_update().one()
+
+
+def commit_or_rollback(db: Session):
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="No se pudo guardar el cambio por un conflicto de integridad.",
+        )
+    except Exception:
+        db.rollback()
+        raise
 
 def get_authorized_consultant_session(
     db: Session,
@@ -78,7 +109,7 @@ def get_consultant_stats(
             total_missing += missing
             
     creditos_totales = current_user.creditos or 0
-    creditos_disponibles = max(0, creditos_totales - total_responses)
+    creditos_disponibles = consultant_available_credits(db, current_user)
     
     return {
         "total_companies": total_companies,
@@ -531,15 +562,16 @@ def create_sub_consultant(
             detail="Los créditos asignados no pueden ser negativos."
         )
     
-    current_senior_credits = current_user.creditos or 0
-    if credits_to_assign > current_senior_credits:
+    senior = locked_consultant(db, current_user.id)
+    available_credits = consultant_available_credits(db, senior)
+    if credits_to_assign > available_credits:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"No cuentas con suficientes créditos disponibles en tu cuenta ({current_senior_credits}) para asignar {credits_to_assign} créditos."
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"No cuentas con créditos disponibles ({available_credits}) para asignar {credits_to_assign} créditos."
         )
 
     # Deduct from senior
-    current_user.creditos = current_senior_credits - credits_to_assign
+    senior.creditos = (senior.creditos or 0) - credits_to_assign
 
     hashed_password = get_password_hash(sub_in.password)
     new_sub = User(
@@ -555,7 +587,7 @@ def create_sub_consultant(
         company_id=None
     )
     db.add(new_sub)
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(new_sub)
     return new_sub
 
@@ -576,6 +608,11 @@ def update_sub_consultant(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Consultor subordinado no encontrado."
         )
+
+    # Lock quota rows before applying any request-provided mutation.  Otherwise
+    # autoflush can surface a uniqueness error outside the rollback boundary.
+    senior = locked_consultant(db, current_user.id)
+    sub = locked_consultant(db, sub.id)
 
     if sub_in.email is not None and sub_in.email != sub.email:
         existing = db.query(User).filter(User.email == sub_in.email).first()
@@ -600,26 +637,27 @@ def update_sub_consultant(
 
     if sub_in.creditos is not None:
         new_credits = sub_in.creditos
-        if new_credits < 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Los créditos no pueden ser negativos.")
+        consumed_credits = consultant_consumed_credits(db, sub.id)
+        if new_credits < consumed_credits:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"No se puede reducir la cuota por debajo de los créditos consumidos ({consumed_credits}).",
+            )
         old_credits = sub.creditos or 0
         diff = new_credits - old_credits
         if diff > 0:
-            # Need more credits from senior
-            current_senior_credits = current_user.creditos or 0
-            if diff > current_senior_credits:
+            available_credits = consultant_available_credits(db, senior)
+            if diff > available_credits:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"No cuentas con suficientes créditos disponibles ({current_senior_credits}) para aumentar {diff} créditos."
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"No cuentas con créditos disponibles ({available_credits}) para aumentar {diff} créditos."
                 )
-            current_user.creditos = current_senior_credits - diff
+            senior.creditos = (senior.creditos or 0) - diff
         elif diff < 0:
-            # Refund difference back to senior
-            refund = abs(diff)
-            current_user.creditos = (current_user.creditos or 0) + refund
+            senior.creditos = (senior.creditos or 0) + abs(diff)
         sub.creditos = new_credits
 
-    db.commit()
+    commit_or_rollback(db)
     db.refresh(sub)
     return sub
 
@@ -640,13 +678,18 @@ def delete_sub_consultant(
             detail="Consultor subordinado no encontrado."
         )
 
-    # Refund unused credits back to senior
-    refund_credits = sub.creditos or 0
+    senior = locked_consultant(db, current_user.id)
+    sub = locked_consultant(db, sub.id)
+    # Only unconsumed quota returns to the senior's available balance.
+    refund_credits = max(0, (sub.creditos or 0) - consultant_consumed_credits(db, sub.id))
     if refund_credits > 0:
-        current_user.creditos = (current_user.creditos or 0) + refund_credits
+        senior.creditos = (senior.creditos or 0) + refund_credits
 
+    db.query(Company).filter(Company.consultant_id == sub.id).update(
+        {Company.consultant_id: None}, synchronize_session=False
+    )
     db.delete(sub)
-    db.commit()
+    commit_or_rollback(db)
     return {"message": "Consultor subordinado eliminado exitosamente."}
 
 @router.put("/sub-consultants/{user_id}/toggle-active", response_model=SubConsultantOut)

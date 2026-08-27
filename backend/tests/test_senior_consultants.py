@@ -12,8 +12,11 @@ from backend.app.core.auth import (
     get_current_consultant,
     get_current_user,
     get_password_hash,
+    create_access_token,
 )
 from sqlalchemy.pool import StaticPool
+from backend.app.db.session import get_db
+from backend.app.db.models import SurveyResponse
 
 # In-memory SQLite DB for testing
 SQLALCHEMY_DATABASE_URL = "sqlite://"
@@ -187,7 +190,7 @@ def test_senior_consultant_cannot_assign_more_credits_than_available(senior_cons
         "creditos": 5000 # More than 1000 available
     }
     res = client.post("/api/consultant/sub-consultants", json=sub_payload)
-    assert res.status_code == 400
+    assert res.status_code == 409
     assert "créditos" in res.json()["detail"].lower()
 
 def test_non_senior_consultant_cannot_manage_sub_consultants(standard_consultant_client, session):
@@ -214,6 +217,8 @@ def test_senior_consultant_crud_sub_consultants_isolation(session):
     sub2 = User(id=202, name="Sub 2", email="sub2@test.com", password_hash="h", role="consultor", is_senior=False, parent_consultant_id=102, creditos=50)
     session.add_all([sr1, sr2, sub1, sub2])
     session.commit()
+    assert sub1.parent_consultant is sr1
+    assert sub1 in sr1.sub_consultants
 
     def override_get_db():
         yield session
@@ -254,3 +259,105 @@ def test_senior_consultant_crud_sub_consultants_isolation(session):
     assert sr1.creditos == 550
 
     app.dependency_overrides.clear()
+
+
+def test_subconsultant_cannot_be_promoted_and_senior_with_children_is_protected(superadmin_client, session):
+    parent = User(id=301, name="Senior", email="senior301@test.com", password_hash="h", role="consultor", is_senior=True, is_active=True)
+    child = User(id=302, name="Junior", email="junior302@test.com", password_hash="h", role="consultor", parent_consultant_id=301, is_active=True)
+    session.add_all([parent, child])
+    session.commit()
+
+    promote_general = superadmin_client.put("/api/superadmin/consultants/302", json={"is_senior": True})
+    promote_status = superadmin_client.put("/api/superadmin/consultants/302/senior-status", json={"is_senior": True})
+    invalid_bool = superadmin_client.put("/api/superadmin/consultants/302/senior-status", json={"is_senior": "true"})
+    missing_bool = superadmin_client.put("/api/superadmin/consultants/302/senior-status", json={})
+    assert promote_general.status_code == 409
+    assert promote_status.status_code == 409
+    assert invalid_bool.status_code == 422
+    assert missing_bool.status_code == 422
+
+    assert superadmin_client.put("/api/superadmin/consultants/301", json={"is_senior": False}).status_code == 409
+    assert superadmin_client.put("/api/superadmin/consultants/301", json={"is_active": False}).status_code == 409
+    assert superadmin_client.delete("/api/superadmin/consultants/301").status_code == 409
+
+
+def test_inactive_consultant_with_existing_token_is_rejected(session):
+    inactive = User(id=401, name="Inactive", email="inactive@test.com", password_hash="h", role="consultor", is_active=False)
+    session.add(inactive)
+    session.commit()
+
+    def override_get_db():
+        yield session
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        token = create_access_token({"sub": inactive.email})
+        client = TestClient(app)
+        headers = {"Authorization": f"Bearer {token}"}
+        assert client.get("/api/auth/me", headers=headers).status_code == 403
+        assert client.get("/api/consultant/stats", headers=headers).status_code == 403
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_junior_credit_transfers_respect_consumption_and_preserve_data(senior_consultant_client, session):
+    client, senior = senior_consultant_client
+    senior.creditos = 995  # five credits were previously transferred to this junior
+    company = Company(id=501, name="Junior Co", rfc="JUN010101AAA", employee_count=1, active_guide="GUIA_II", consultant_id=999)
+    junior = User(id=999, name="Junior", email="junior-credit@test.com", password_hash="h", role="consultor", parent_consultant_id=senior.id, creditos=5, is_active=True)
+    response = SurveyResponse(company_id=501, demographics={}, answers={}, calculated_scores={})
+    session.add_all([company, junior, response])
+    session.commit()
+
+    # Junior consumed one credit: quota cannot fall below it and deleting refunds only four.
+    below_consumed = client.put("/api/consultant/sub-consultants/999", json={"creditos": 0})
+    assert below_consumed.status_code == 409
+    deleted = client.delete("/api/consultant/sub-consultants/999")
+    assert deleted.status_code == 200
+    session.refresh(senior)
+    preserved_company = session.query(Company).filter_by(id=501).one()
+    assert senior.creditos == 999
+    assert preserved_company.consultant_id is None
+    assert session.query(SurveyResponse).filter_by(company_id=501).count() == 1
+
+
+def test_senior_cannot_transfer_credits_already_consumed(senior_consultant_client, session):
+    client, senior = senior_consultant_client
+    senior.creditos = 5
+    company = Company(id=601, name="Senior Co", rfc="SEN010101AAA", employee_count=1, active_guide="GUIA_II", consultant_id=senior.id)
+    session.add_all([company, SurveyResponse(company_id=601, demographics={}, answers={}, calculated_scores={})])
+    session.commit()
+
+    response = client.post("/api/consultant/sub-consultants", json={
+        "name": "Over quota", "email": "over-quota@test.com", "password": "Password123!", "creditos": 5,
+    })
+    assert response.status_code == 409
+    session.refresh(senior)
+    assert senior.creditos == 5
+
+
+def test_junior_quota_increase_and_valid_reduction_transfer_only_the_difference(senior_consultant_client, session):
+    client, senior = senior_consultant_client
+    created = client.post("/api/consultant/sub-consultants", json={
+        "name": "Quota junior", "email": "quota-junior@test.com", "password": "Password123!", "creditos": 100,
+    })
+    assert created.status_code == 201
+    junior_id = created.json()["id"]
+    assert client.put(f"/api/consultant/sub-consultants/{junior_id}", json={"creditos": 150}).status_code == 200
+    session.refresh(senior)
+    assert senior.creditos == 850
+    assert client.put(f"/api/consultant/sub-consultants/{junior_id}", json={"creditos": 120}).status_code == 200
+    session.refresh(senior)
+    assert senior.creditos == 880
+
+
+def test_duplicate_email_does_not_debit_senior_credit_balance(senior_consultant_client, session):
+    client, senior = senior_consultant_client
+    session.add(User(name="Existing", email="taken@test.com", password_hash="h", role="consultor", is_active=True))
+    session.commit()
+    response = client.post("/api/consultant/sub-consultants", json={
+        "name": "Duplicate", "email": "taken@test.com", "password": "Password123!", "creditos": 100,
+    })
+    assert response.status_code == 400
+    session.refresh(senior)
+    assert senior.creditos == 1000

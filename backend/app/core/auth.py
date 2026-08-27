@@ -79,6 +79,11 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
             detail="Usuario no encontrado",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if user.role == "consultor" and not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="El acceso de este consultor está desactivado.",
+        )
     return user
 
 # Dependency to check if current user is admin (superadmin or companyadmin)
@@ -110,7 +115,7 @@ def get_current_consultant(current_user: User = Depends(get_current_user)) -> Us
 
 # Dependency to check if current user is senior consultant
 def get_current_senior_consultant(current_user: User = Depends(get_current_consultant)) -> User:
-    if not current_user.is_senior:
+    if not current_user.is_active or not current_user.is_senior:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Solo los Consultores Senior tienen autorización para gestionar consultores."

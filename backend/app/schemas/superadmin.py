@@ -1,5 +1,5 @@
 # backend/app/schemas/superadmin.py
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, StrictBool
 from typing import Optional, List
 import datetime
 
@@ -14,7 +14,7 @@ class ConsultantCreate(BaseModel):
     email: EmailStr
     password: str
     cedula_profesional: Optional[str] = None
-    creditos: Optional[int] = 0
+    creditos: int = Field(default=0, ge=0)
     capacitaciones: Optional[List[TrainingItem]] = []
     is_active: Optional[bool] = True
     is_senior: Optional[bool] = False
@@ -24,13 +24,13 @@ class ConsultantUpdate(BaseModel):
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     cedula_profesional: Optional[str] = None
-    creditos: Optional[int] = None
+    creditos: Optional[int] = Field(default=None, ge=0)
     capacitaciones: Optional[List[TrainingItem]] = None
-    is_active: Optional[bool] = None
-    is_senior: Optional[bool] = None
+    is_active: Optional[StrictBool] = None
+    is_senior: Optional[StrictBool] = None
 
 class SeniorStatusUpdate(BaseModel):
-    is_senior: bool
+    is_senior: StrictBool
 
 class PaymentHistoryItem(BaseModel):
     date: datetime.date

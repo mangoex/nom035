@@ -1,5 +1,5 @@
 # backend/app/schemas/auth.py
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field, StrictBool
 from typing import Optional, List, Dict, Any
 import datetime
 
@@ -56,15 +56,15 @@ class SubConsultantCreate(BaseModel):
     email: EmailStr
     password: str
     cedula_profesional: Optional[str] = None
-    creditos: Optional[int] = 0
+    creditos: int = Field(default=0, ge=0)
 
 class SubConsultantUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
     password: Optional[str] = None
     cedula_profesional: Optional[str] = None
-    creditos: Optional[int] = None
-    is_active: Optional[bool] = None
+    creditos: Optional[int] = Field(default=None, ge=0)
+    is_active: Optional[StrictBool] = None
 
 class SubConsultantOut(BaseModel):
     id: int
