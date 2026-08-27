@@ -219,18 +219,19 @@ export default function Dashboard({ consultantMode = false }) {
         setTasks([]);
         setSuggestions([]);
       } else {
-        const [compRes, statsRes, respRes, tasksRes, suggRes] = await Promise.all([
+        const [compRes, statsRes, respRes] = await Promise.all([
           api.get("/api/company/me"),
           api.get(`/api/survey/stats${query}`),
-          api.get(`/api/survey/responses${query}`),
-          api.get("/api/action_plan/tasks"),
-          api.get("/api/action_plan/suggested")
+          api.get(`/api/survey/responses${query}`)
         ]);
         setCompany(compRes.data);
         setStats(statsRes.data);
         setResponses(respRes.data.responses);
-        setTasks(tasksRes.data);
-        setSuggestions(suggRes.data.suggestions || []);
+        // El Plan de Acción se carga exclusivamente en su módulo, donde el PIN
+        // HttpOnly se valida contra una encuesta concreta. El dashboard nunca
+        // debe convertir una denegación del plan en un error de resultados.
+        setTasks([]);
+        setSuggestions([]);
       }
     } catch (err) {
       console.error(err);

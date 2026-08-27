@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 
 from backend.app.api.endpoints.action_plan import get_action_plan_user
 from backend.app.api.endpoints.consultant import get_current_consultant
+from backend.app.core.auth import get_current_admin
 from backend.app.db.models import ActionPlan, Company, SurveyResponse, SurveySession, User
 from backend.app.db.session import Base, get_db
 from backend.app.main import app
@@ -65,6 +66,33 @@ def test_company_needs_valid_pin_and_session_scoped_access(data):
         created = company_client.post(f"/api/action_plan/tasks?survey_session_id={survey_session.id}", json={"intervention_level": "first_level", "description": "Tarea protegida"})
         assert created.status_code == 201
         assert created.json()["survey_session_id"] == survey_session.id
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_company_results_are_available_without_an_action_plan_pin_grant(data):
+    """Survey reporting stays independent from the PIN-protected action plan."""
+    db, _, _, _, admin, survey_session = data
+
+    def override_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_db
+    app.dependency_overrides[get_current_admin] = lambda: admin
+    app.dependency_overrides[get_action_plan_user] = lambda: admin
+    try:
+        company_client = TestClient(app)
+
+        assert company_client.get(
+            f"/api/survey/stats?survey_session_id={survey_session.id}"
+        ).status_code == 200
+        assert company_client.get(
+            f"/api/survey/responses?survey_session_id={survey_session.id}"
+        ).status_code == 200
+        # The same company still cannot read the scoped plan before PIN verification.
+        assert company_client.get(
+            f"/api/action_plan/tasks?survey_session_id={survey_session.id}"
+        ).status_code == 403
     finally:
         app.dependency_overrides.clear()
 

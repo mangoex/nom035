@@ -14,8 +14,19 @@ const RISK_COLORS = {
   "N/A": "#cbd5e1"
 };
 
-export const PrintableReport = React.forwardRef(({ company, stats, tasks, suggestions }, ref) => {
+export const PrintableReport = React.forwardRef(({
+  company,
+  stats,
+  tasks = [],
+  suggestions = [],
+}, ref) => {
   if (!company || !stats) return null;
+
+  // El reporte puede renderizarse sin autorización PIN para el plan. Nunca
+  // debe interpretar datos incompletos o fallos del plan como un fallo de los
+  // resultados de la encuesta.
+  const reportTasks = Array.isArray(tasks) ? tasks : [];
+  const reportSuggestions = Array.isArray(suggestions) ? suggestions : [];
 
   const pieData = Object.entries(stats?.final_risk_distribution || {}).map(([name, value]) => ({
     name,
@@ -264,7 +275,7 @@ export const PrintableReport = React.forwardRef(({ company, stats, tasks, sugges
           <h4 style={{ color: "#0f172a", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
             <CheckCircle size={20} color="#10b981" /> Tareas Vigentes en Progreso
           </h4>
-          {tasks && tasks.length > 0 ? (
+          {reportTasks.length > 0 ? (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", marginTop: "15px" }}>
               <thead>
                 <tr style={{ backgroundColor: "#f8fafc", borderTop: "1px solid #cbd5e1", borderBottom: "2px solid #cbd5e1" }}>
@@ -275,7 +286,7 @@ export const PrintableReport = React.forwardRef(({ company, stats, tasks, sugges
                 </tr>
               </thead>
               <tbody>
-                {tasks.map((task, idx) => (
+                {reportTasks.map((task, idx) => (
                   <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
                     <td style={{ padding: "10px", color: "#334155" }}>{task.description}</td>
                     <td style={{ padding: "10px", color: "#3b82f6", fontWeight: "500", fontStyle: "italic" }}>{task.assigned_to || "-"}</td>
@@ -306,9 +317,9 @@ export const PrintableReport = React.forwardRef(({ company, stats, tasks, sugges
           <h4 style={{ color: "#0f172a", borderBottom: "1px solid #e2e8f0", paddingBottom: "10px", display: "flex", alignItems: "center", gap: "8px" }}>
             <Info size={20} color="#3b82f6" /> Sugerencias Normativas No Atendidas
           </h4>
-          {suggestions && suggestions.length > 0 ? (
+          {reportSuggestions.length > 0 ? (
             <ul style={{ fontSize: "12px", color: "#475569", paddingLeft: "20px", lineHeight: "1.6" }}>
-              {suggestions.map((sugg, i) => (
+              {reportSuggestions.map((sugg, i) => (
                 <li key={i} style={{ marginBottom: "10px" }}>
                   <span style={{ fontWeight: "bold", color: sugg.intervention_level === "first_level" ? "#3b82f6" : "#f59e0b" }}>
                     {sugg.intervention_level === "first_level" ? "[1° Nivel]" : "[2° Nivel]"}
