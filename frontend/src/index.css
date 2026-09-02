@@ -543,6 +543,16 @@ body {
   accent-color: var(--color-primary);
 }
 
+.comparison-checkbox:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.comparison-unavailable {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
 .comparison-selector {
   flex: 1;
   width: auto;

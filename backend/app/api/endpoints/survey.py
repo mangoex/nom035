@@ -769,6 +769,13 @@ def get_survey_statistics(
     current_user: User = Depends(get_current_admin)
 ):
     active_guide = current_user.company.active_guide if hasattr(current_user, "company") and current_user.company else "GUIA_III"
+    if survey_session_id:
+        selected_session = db.query(SurveySession).filter(
+            SurveySession.id == survey_session_id,
+            SurveySession.company_id == current_user.company_id,
+        ).first()
+        if selected_session:
+            active_guide = selected_session.guide_type
     return build_survey_statistics(
         db,
         current_user.company_id,

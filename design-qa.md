@@ -11,7 +11,9 @@
 ## Estados verificados
 
 - Menú expandido y contraído; la preferencia persiste y cada icono conserva etiqueta accesible.
-- Cambio simple y comparación entre encuestas; la selección actualiza metadatos, respuestas, filtros, KPI y gráficas.
+- Empresa y consultor: cambio simple y comparación entre encuestas; la selección actualiza metadatos, respuestas, filtros, KPI y gráficas.
+- El tablero abre la encuesta más reciente con respuestas de Guía II o III y sólo permite comparar sesiones de la misma empresa y guía.
+- Las cargas CSV heredadas sin sesión conservan la vista consolidada para no perder acceso a resultados históricos.
 - Leyenda visible para distinguir intervención organizacional, grupal e individual; no se presenta como prioridad o severidad.
 - Desplegable cerrado y abierto en cada recomendación, con conteo de dimensiones.
 - Alta de una recomendación en “Por Hacer”; las dimensiones permanecen asociadas y se muestran también en la tarjeta creada.

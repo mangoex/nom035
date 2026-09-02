@@ -235,7 +235,7 @@ def get_authorized_survey_statistics(
     return build_survey_statistics(
         db,
         company.id,
-        company.active_guide,
+        session.guide_type,
         age_range,
         gender,
         department,

@@ -213,6 +213,35 @@ def test_survey_public_authentication_and_submit(client, session):
     assert response.status_code == 200
     assert len(response.json()["responses"]) == 1
 
+def test_session_stats_use_selected_session_guide(client, session):
+    survey_sess = SurveySession(
+        company_id=1,
+        guide_type="GUIA_III",
+        link_hash="historical-guide-three",
+        is_active=False,
+        fecha_fin=date.today(),
+    )
+    session.add(survey_sess)
+    session.flush()
+    session.add(SurveyResponse(
+        company_id=1,
+        survey_session_id=survey_sess.id,
+        demographics={
+            "age_range": "26-35",
+            "gender": "Masculino",
+            "department": "Operaciones",
+            "position": "Operativo",
+        },
+        answers={},
+        calculated_scores={"final_score": 70, "final_risk": "Bajo"},
+    ))
+    session.commit()
+
+    response = client.get(f"/api/survey/stats?survey_session_id={survey_sess.id}")
+
+    assert response.status_code == 200
+    assert response.json()["global_score_risk"] == "Bajo"
+
 def test_get_uploads_dir(monkeypatch):
     from backend.app.db.session import get_uploads_dir
     

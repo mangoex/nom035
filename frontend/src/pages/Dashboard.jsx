@@ -1,10 +1,9 @@
 // frontend/src/pages/Dashboard.jsx
 import React, { useEffect, useState, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { generateNom035Report } from "../utils/pdfGenerator";
 import { 
   Users, 
-  Activity, 
   ShieldAlert, 
   FileCheck2,
   AlertTriangle,
@@ -77,15 +76,17 @@ const GUIDE_LABELS = {
 const formatSurveyDate = (session) => {
   const value = session?.fecha_fin || session?.created_at;
   if (!value) return "Fecha no disponible";
-  return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", year: "numeric" }).format(new Date(value));
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(...value.split("-").map((part, index) => Number(part) - (index === 1 ? 1 : 0)))
+    : new Date(value);
+  return new Intl.DateTimeFormat("es-MX", { day: "2-digit", month: "short", year: "numeric" }).format(date);
 };
 
 const sessionOptionLabel = (session) => (
-  `${session.company_name} · ${GUIDE_LABELS[session.guide_type] || session.guide_type} · ${formatSurveyDate(session)} · ${session.response_count} respuestas`
+  `${session.company_name ? `${session.company_name} · ` : ""}${GUIDE_LABELS[session.guide_type] || session.guide_type} · ${formatSurveyDate(session)} · ${session.response_count} respuestas`
 );
 
 export default function Dashboard({ consultantMode = false }) {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const sessionKey = sessionId ? sessionStorage.getItem(`session_key_${sessionId}`) : null;
@@ -99,7 +100,8 @@ export default function Dashboard({ consultantMode = false }) {
   const [error, setError] = useState("");
   const [isAccessDenied, setIsAccessDenied] = useState(false);
   const [surveySessions, setSurveySessions] = useState([]);
-  const [sessionsReady, setSessionsReady] = useState(!consultantMode);
+  const [sessionsReady, setSessionsReady] = useState(false);
+  const [useGlobalResults, setUseGlobalResults] = useState(false);
   const [selectedSessionContext, setSelectedSessionContext] = useState(null);
   const [compareEnabled, setCompareEnabled] = useState(false);
   const [comparisonSessionId, setComparisonSessionId] = useState("");
@@ -142,15 +144,18 @@ export default function Dashboard({ consultantMode = false }) {
   };
 
   useEffect(() => {
-    if (!consultantMode) return;
-
     let cancelled = false;
     const loadSurveySessions = async () => {
       try {
-        const response = await api.get("/api/consultant/survey-sessions");
+        const response = await api.get(
+          consultantMode ? "/api/consultant/survey-sessions" : "/api/survey/sessions"
+        );
         if (cancelled) return;
-        const completedSessions = response.data.filter((session) => session.response_count > 0);
+        const completedSessions = response.data.filter((session) => (
+          session.response_count > 0 && ["GUIA_II", "GUIA_III"].includes(session.guide_type)
+        ));
         setSurveySessions(completedSessions);
+        setUseGlobalResults(!consultantMode && completedSessions.length === 0);
 
         const requestedSessionExists = completedSessions.some((session) => String(session.id) === String(sessionId));
         if (!requestedSessionExists && completedSessions.length > 0) {
@@ -158,13 +163,17 @@ export default function Dashboard({ consultantMode = false }) {
           nextParams.set("session_id", String(completedSessions[0].id));
           setSearchParams(nextParams, { replace: true });
         } else if (completedSessions.length === 0) {
-          setError("Todavía no hay encuestas con respuestas disponibles para evaluar.");
-          setLoading(false);
+          if (consultantMode) {
+            setError("Todavía no hay encuestas de Guía II o III con respuestas disponibles para evaluar.");
+            setLoading(false);
+          }
         }
       } catch (err) {
         if (!cancelled) {
           console.error(err);
-          setError("No fue posible cargar las encuestas autorizadas.");
+          setError(consultantMode
+            ? "No fue posible cargar las encuestas autorizadas."
+            : "No fue posible cargar las encuestas de la empresa.");
           setLoading(false);
         }
       } finally {
@@ -246,9 +255,9 @@ export default function Dashboard({ consultantMode = false }) {
   };
 
   useEffect(() => {
-    if (consultantMode && (!sessionsReady || !sessionId)) return;
+    if (!sessionsReady || (!sessionId && !useGlobalResults)) return;
     fetchData();
-  }, [filters, sessionId, sessionsReady]);
+  }, [filters, sessionId, sessionsReady, useGlobalResults]);
 
   const selectedSession = surveySessions.find((session) => String(session.id) === String(sessionId));
   const compatibleSessions = selectedSession
@@ -277,7 +286,10 @@ export default function Dashboard({ consultantMode = false }) {
       });
       const query = params.toString() ? `?${params.toString()}` : "";
       try {
-        const response = await api.get(`/api/consultant/survey-sessions/${comparisonSessionId}/stats${query}`);
+        const response = await api.get(consultantMode
+          ? `/api/consultant/survey-sessions/${comparisonSessionId}/stats${query}`
+          : `/api/survey/stats${query ? `${query}&` : "?"}survey_session_id=${comparisonSessionId}`
+        );
         if (!cancelled) setComparisonStats(response.data);
       } catch (err) {
         if (!cancelled) {
@@ -464,34 +476,32 @@ export default function Dashboard({ consultantMode = false }) {
           </div>
         </header>
 
-        {consultantMode && selectedSession && (
+        {selectedSession && (
           <section className="survey-workspace-card" aria-label="Selección y datos de encuesta">
             <div className="survey-workspace-topline">
               <div>
                 <span className="survey-workspace-eyebrow">Encuesta seleccionada</span>
-                <h2>{selectedSession.company_name}</h2>
+                <h2>{selectedSession.company_name || company?.name}</h2>
               </div>
-              {surveySessions.length > 1 && (
-                <div className="survey-selector-field">
-                  <label htmlFor="survey-session-selector">Cambiar encuesta</label>
-                  <select
-                    id="survey-session-selector"
-                    className="form-input"
-                    value={sessionId || ""}
-                    onChange={handleSessionChange}
-                  >
-                    {surveySessions.map((session) => (
-                      <option key={session.id} value={session.id}>{sessionOptionLabel(session)}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              <div className="survey-selector-field">
+                <label htmlFor="survey-session-selector">Cambiar encuesta</label>
+                <select
+                  id="survey-session-selector"
+                  className="form-input"
+                  value={sessionId || ""}
+                  onChange={handleSessionChange}
+                >
+                  {surveySessions.map((session) => (
+                    <option key={session.id} value={session.id}>{sessionOptionLabel(session)}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div className="survey-metadata-grid">
               <div className="survey-metadata-item">
                 <Building2 size={18} />
-                <span><small>Empresa</small>{selectedSession.company_name}</span>
+                <span><small>Empresa</small>{selectedSession.company_name || company?.name}</span>
               </div>
               <div className="survey-metadata-item">
                 <FileCheck2 size={18} />
@@ -507,42 +517,44 @@ export default function Dashboard({ consultantMode = false }) {
               </div>
             </div>
 
-            {compatibleSessions.length > 0 && (
-              <div className="survey-comparison-controls">
-                <label className="comparison-checkbox" htmlFor="compare-surveys">
-                  <input
-                    id="compare-surveys"
-                    type="checkbox"
-                    checked={compareEnabled}
-                    onChange={(event) => {
-                      setCompareEnabled(event.target.checked);
-                      if (!event.target.checked) {
-                        setComparisonSessionId("");
-                        setComparisonStats(null);
-                      }
-                    }}
-                  />
-                  <GitCompareArrows size={18} />
-                  Comparar con otra encuesta
-                </label>
-                {compareEnabled && (
-                  <div className="survey-selector-field comparison-selector">
-                    <label htmlFor="comparison-session-selector">Encuesta de comparación</label>
-                    <select
-                      id="comparison-session-selector"
-                      className="form-input"
-                      value={comparisonSessionId}
-                      onChange={(event) => setComparisonSessionId(event.target.value)}
-                    >
-                      <option value="">Selecciona una encuesta</option>
-                      {compatibleSessions.map((session) => (
-                        <option key={session.id} value={session.id}>{sessionOptionLabel(session)}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-            )}
+            <div className="survey-comparison-controls">
+              <label className="comparison-checkbox" htmlFor="compare-surveys">
+                <input
+                  id="compare-surveys"
+                  type="checkbox"
+                  checked={compareEnabled}
+                  disabled={compatibleSessions.length === 0}
+                  onChange={(event) => {
+                    setCompareEnabled(event.target.checked);
+                    if (!event.target.checked) {
+                      setComparisonSessionId("");
+                      setComparisonStats(null);
+                    }
+                  }}
+                />
+                <GitCompareArrows size={18} />
+                Comparar con otra encuesta
+              </label>
+              {compatibleSessions.length === 0 && (
+                <span className="comparison-unavailable">Necesitas otra encuesta de la misma guía con respuestas.</span>
+              )}
+              {compareEnabled && (
+                <div className="survey-selector-field comparison-selector">
+                  <label htmlFor="comparison-session-selector">Encuesta de comparación</label>
+                  <select
+                    id="comparison-session-selector"
+                    className="form-input"
+                    value={comparisonSessionId}
+                    onChange={(event) => setComparisonSessionId(event.target.value)}
+                  >
+                    <option value="">Selecciona una encuesta</option>
+                    {compatibleSessions.map((session) => (
+                      <option key={session.id} value={session.id}>{sessionOptionLabel(session)}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
 
             {compareEnabled && comparisonSession && (
               <div className="comparison-legend" aria-live="polite">
@@ -553,39 +565,6 @@ export default function Dashboard({ consultantMode = false }) {
             )}
             {comparisonError && <p className="comparison-error">{comparisonError}</p>}
           </section>
-        )}
-
-        {sessionId && !consultantMode && (
-          <div style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "12px 20px",
-            backgroundColor: "rgba(99, 102, 241, 0.1)",
-            border: "1px solid rgba(99, 102, 241, 0.2)",
-            borderRadius: "var(--radius-md)",
-            marginBottom: "24px"
-          }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", color: "var(--color-primary)", fontSize: "14px", fontWeight: "500" }}>
-              <Activity size={18} />
-              <span>
-                Filtrando resultados por la sesión de encuesta activa (ID: {sessionId}). Solo se muestran datos vinculados a este enlace.
-              </span>
-            </div>
-            <button
-              onClick={() => {
-                if (consultantMode) {
-                  navigate("/consultant/dashboard");
-                } else {
-                  setSearchParams({});
-                }
-              }}
-              className="btn btn-secondary"
-              style={{ padding: "6px 12px", fontSize: "12px" }}
-            >
-              Ver todos los resultados (Quitar Filtro)
-            </button>
-          </div>
         )}
 
         {error && (
@@ -661,11 +640,9 @@ export default function Dashboard({ consultantMode = false }) {
               <FileCheck2 size={24} style={{ color: "var(--color-success)" }} />
             </div>
             <div>
-              <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "500" }}>Guía Activa</span>
+              <span style={{ fontSize: "12px", color: "var(--text-secondary)", fontWeight: "500" }}>Guía evaluada</span>
               <h3 style={{ fontSize: "16px", fontWeight: "700", marginTop: "6px" }}>
-                {company?.active_guide === "GUIA_I" ? "Guía I" : 
-                 company?.active_guide === "GUIA_II" ? "Guías I y II" : 
-                 "Guías I y III"}
+                {GUIDE_LABELS[selectedSession?.guide_type] || GUIDE_LABELS[company?.active_guide] || "Sin guía"}
               </h3>
             </div>
           </div>
@@ -834,7 +811,7 @@ export default function Dashboard({ consultantMode = false }) {
                     {radarDataDimensions.map((dim, i) => {
                       const isExpanded = expandedDimensions[dim.fullName];
                       const questionIds = stats.dimension_mapping?.[dim.fullName] || [];
-                      const questionsList = company?.active_guide === "GUIA_II" ? QUESTIONS_GUIA_II : QUESTIONS_GUIA_III;
+                      const questionsList = selectedSession?.guide_type === "GUIA_II" ? QUESTIONS_GUIA_II : QUESTIONS_GUIA_III;
                       
                       return (
                       <div key={i} style={{ display: "flex", flexDirection: "column", padding: "8px 12px", borderRadius: "8px", backgroundColor: RISK_COLORS[dim.Riesgo] ? `${RISK_COLORS[dim.Riesgo]}15` : "transparent", borderLeft: `4px solid ${RISK_COLORS[dim.Riesgo] || "#cbd5e1"}` }}>
