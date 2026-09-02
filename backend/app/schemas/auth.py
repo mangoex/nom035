@@ -88,3 +88,10 @@ class ProfileUpdate(BaseModel):
     password: Optional[str] = None
     cedula_profesional: Optional[str] = None
     capacitaciones: Optional[List[Dict[str, Any]]] = None
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+

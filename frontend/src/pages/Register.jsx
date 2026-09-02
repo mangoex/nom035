@@ -1,7 +1,7 @@
 // frontend/src/pages/Register.jsx
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Building, Lock, Mail, User, ShieldCheck, HelpCircle, AlertCircle } from "lucide-react";
+import { Building, Lock, Mail, User, ShieldCheck, HelpCircle, AlertCircle, Eye, EyeOff } from "lucide-react";
 import api from "../utils/api";
 import ThemeToggle from "../components/ThemeToggle";
 import AuthPrivacyLink from "../components/AuthPrivacyLink";
@@ -16,6 +16,7 @@ export default function Register() {
     employee_count: 1,
     sector: "Tecnología"
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -157,14 +158,36 @@ export default function Register() {
               <Lock size={18} style={{ position: "absolute", left: "14px", top: "12px", color: "var(--text-muted)" }} />
               <input
                 id="password"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 placeholder="Mínimo 6 caracteres"
                 className="form-input"
-                style={{ paddingLeft: "42px" }}
+                style={{ paddingLeft: "42px", paddingRight: "42px" }}
                 value={formData.password}
                 onChange={handleChange}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                style={{
+                  position: "absolute",
+                  right: "12px",
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "4px"
+                }}
+                title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+                aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 

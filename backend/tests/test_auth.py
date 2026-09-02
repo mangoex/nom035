@@ -76,3 +76,38 @@ def test_register_and_login_flow(client):
     data_login = response_login.json()
     assert data_login["user"]["email"] == "testuser@example.com"
     assert "access_token" in response_login.cookies
+
+def test_forgot_password_flow(client, session):
+    # 1. Register a user
+    register_data = {
+        "name": "Recovery User",
+        "email": "recovery@example.com",
+        "password": "old_password_123",
+        "company_name": "Recovery Corp",
+        "employee_count": 25,
+        "rfc": "REC123456XYZ",
+        "sector": "Servicios"
+    }
+    reg_res = client.post("/api/auth/register", json=register_data)
+    assert reg_res.status_code == 201
+    
+    # 2. Request forgot-password
+    forgot_res = client.post("/api/auth/forgot-password", json={"email": "recovery@example.com"})
+    assert forgot_res.status_code == 200
+    assert "message" in forgot_res.json()
+
+    # 3. Verify old password no longer works
+    login_old = client.post("/api/auth/login", json={
+        "email": "recovery@example.com",
+        "password": "old_password_123"
+    })
+    assert login_old.status_code == 400
+
+    # 4. Request forgot-password for non-existent user (should succeed gracefully without error)
+    non_existent_res = client.post("/api/auth/forgot-password", json={"email": "notfound@example.com"})
+    assert non_existent_res.status_code == 200
+
+    # 5. Request with invalid email format returns 422
+    invalid_email_res = client.post("/api/auth/forgot-password", json={"email": "not-an-email"})
+    assert invalid_email_res.status_code == 422
+

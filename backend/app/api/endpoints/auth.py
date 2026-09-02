@@ -2,19 +2,44 @@
 import os
 import shutil
 import uuid
+import secrets
+import string
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company
-from backend.app.schemas.auth import UserRegister, UserLogin, UserOut, ProfileUpdate
+from backend.app.schemas.auth import (
+    UserRegister,
+    UserLogin,
+    UserOut,
+    ProfileUpdate,
+    ForgotPasswordRequest,
+    ForgotPasswordResponse
+)
 from backend.app.core.auth import (
     get_password_hash,
     verify_password,
     create_access_token,
     get_current_user
 )
+from backend.app.core.email import send_password_reset_email
 
 router = APIRouter()
+
+
+def generate_temporary_password(length: int = 10) -> str:
+    """Generate a secure, random temporary password with mixed characters."""
+    alphabet = string.ascii_letters + string.digits + "!@#$%*"
+    password = [
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.digits),
+        secrets.choice("!@#$%*")
+    ]
+    password += [secrets.choice(alphabet) for _ in range(length - len(password))]
+    secrets.SystemRandom().shuffle(password)
+    return "".join(password)
+
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserRegister, response: Response, request: Request, db: Session = Depends(get_db)):
@@ -107,6 +132,24 @@ def login(user_in: UserLogin, response: Response, request: Request, db: Session 
     )
 
     return {"user": UserOut.model_validate(user), "message": "Inicio de sesión exitoso"}
+
+@router.post("/forgot-password", response_model=ForgotPasswordResponse)
+def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == req.email).first()
+    if user:
+        temp_password = generate_temporary_password(10)
+        user.password_hash = get_password_hash(temp_password)
+        db.commit()
+        send_password_reset_email(
+            to_email=user.email,
+            user_name=user.name,
+            temporary_password=temp_password
+        )
+
+    # Consistent generic response to prevent user enumeration
+    return {
+        "message": "Si el correo electrónico está registrado, hemos enviado las instrucciones con su contraseña temporal a su bandeja de entrada."
+    }
 
 @router.post("/logout")
 def logout(response: Response):
