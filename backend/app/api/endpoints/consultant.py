@@ -23,6 +23,10 @@ from backend.app.core.auth import (
     get_password_hash, action_plan_pin_secret
 )
 from backend.app.core.company_utils import normalize_departments
+from backend.app.core.survey_sessions import (
+    is_survey_session_open,
+    survey_session_closing_has_occurred,
+)
 from backend.app.api.endpoints.survey import (
     build_session_results_excel,
     build_survey_responses,
@@ -200,6 +204,8 @@ def get_authorized_survey_context(
             "response_count": session.response_count,
             "created_at": session.created_at,
             "fecha_fin": session.fecha_fin,
+            "accepting_responses": is_survey_session_open(session),
+            "closing_has_occurred": survey_session_closing_has_occurred(session),
         },
         "company": {
             "id": company.id,

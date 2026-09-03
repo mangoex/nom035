@@ -122,7 +122,12 @@ export default function Dashboard({ consultantMode = false }) {
         console.error("Error parsing token", e);
       }
     }
-    await generateNom035Report(stats, company, user);
+    await generateNom035Report(stats, company, user, {
+      surveySession: selectedSession
+        ? { ...selectedSession, ...selectedSessionContext }
+        : null,
+      responses,
+    });
   };
   
   const [filters, setFilters] = useState({
@@ -228,12 +233,16 @@ export default function Dashboard({ consultantMode = false }) {
         setTasks([]);
         setSuggestions([]);
       } else {
-        const [compRes, statsRes, respRes] = await Promise.all([
+        const [compRes, statsRes, respRes, sessionRes] = await Promise.all([
           api.get("/api/company/me"),
           api.get(`/api/survey/stats${query}`),
-          api.get(`/api/survey/responses${query}`)
+          api.get(`/api/survey/responses${query}`),
+          sessionId
+            ? api.get(`/api/survey/sessions/${sessionId}`)
+            : Promise.resolve({ data: null }),
         ]);
         setCompany(compRes.data);
+        setSelectedSessionContext(sessionRes.data);
         setStats(statsRes.data);
         setResponses(respRes.data.responses);
         // El Plan de Acción se carga exclusivamente en su módulo, donde el PIN
