@@ -69,6 +69,7 @@ export default function Dashboard({ consultantMode = false }) {
 
   const [loading, setLoading] = useState(true);
   const [company, setCompany] = useState(null);
+  const [surveySession, setSurveySession] = useState(null);
   const [stats, setStats] = useState(null);
   const [responses, setResponses] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -89,7 +90,10 @@ export default function Dashboard({ consultantMode = false }) {
         console.error("Error parsing token", e);
       }
     }
-    await generateNom035Report(stats, company, user);
+    await generateNom035Report(stats, company, user, {
+      surveySession,
+      responses,
+    });
   };
   
   const [filters, setFilters] = useState({
@@ -147,19 +151,24 @@ export default function Dashboard({ consultantMode = false }) {
           api.get(`/api/consultant/survey-sessions/${sessionId}/responses${query}`)
         ]);
         setCompany(contextRes.data.company);
+        setSurveySession(contextRes.data.session);
         setStats(statsRes.data);
         setResponses(respRes.data.responses);
         setTasks([]);
         setSuggestions([]);
       } else {
-        const [compRes, statsRes, respRes, tasksRes, suggRes] = await Promise.all([
+        const [compRes, statsRes, respRes, tasksRes, suggRes, sessionRes] = await Promise.all([
           api.get("/api/company/me"),
           api.get(`/api/survey/stats${query}`),
           api.get(`/api/survey/responses${query}`),
           api.get("/api/action_plan/tasks"),
-          api.get("/api/action_plan/suggested")
+          api.get("/api/action_plan/suggested"),
+          sessionId
+            ? api.get(`/api/survey/sessions/${sessionId}`)
+            : Promise.resolve({ data: null }),
         ]);
         setCompany(compRes.data);
+        setSurveySession(sessionRes.data);
         setStats(statsRes.data);
         setResponses(respRes.data.responses);
         setTasks(tasksRes.data);

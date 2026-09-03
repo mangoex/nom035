@@ -10,6 +10,7 @@ from backend.app.main import app
 from backend.app.db.session import Base, get_db
 from backend.app.db.models import User, Company, SurveySession, SurveyResponse
 from backend.app.core.auth import get_current_admin
+from backend.app.core.survey_sessions import is_survey_session_open
 
 # Use an in-memory SQLite database for testing with StaticPool to share connection
 SQLALCHEMY_DATABASE_URL = "sqlite://"
@@ -138,6 +139,98 @@ def test_survey_session_creation_and_listing(client):
     response = client.get(f"/api/survey/sessions?start_date={past_date_str}&end_date={past_date_str}")
     assert len(response.json()) == 0
 
+
+def test_get_survey_session_context_is_scoped_to_admin_company(client, session):
+    own_session = SurveySession(
+        company_id=1,
+        guide_type="GUIA_II",
+        link_hash="own-session-context",
+        is_active=True,
+        fecha_fin=date.today() + timedelta(days=5),
+    )
+    other_company = Company(
+        id=2,
+        name="Other Company",
+        rfc="OTH123456ABC",
+        employee_count=15,
+        active_guide="GUIA_II",
+    )
+    other_session = SurveySession(
+        company_id=2,
+        guide_type="GUIA_II",
+        link_hash="foreign-session-context",
+        is_active=True,
+        fecha_fin=date.today() + timedelta(days=5),
+    )
+    session.add_all([own_session, other_company, other_session])
+    session.commit()
+
+    own_response = client.get(f"/api/survey/sessions/{own_session.id}")
+    assert own_response.status_code == 200
+    assert own_response.json()["id"] == own_session.id
+    assert own_response.json()["fecha_fin"] == str(own_session.fecha_fin)
+    assert own_response.json()["accepting_responses"] is True
+    assert own_response.json()["closing_has_occurred"] is False
+    assert "clave_secreta" not in own_response.json()
+
+    foreign_response = client.get(f"/api/survey/sessions/{other_session.id}")
+    assert foreign_response.status_code == 404
+
+
+def test_expired_session_rejects_public_access_and_submission(client, session):
+    expired_session = SurveySession(
+        company_id=1,
+        guide_type="GUIA_I",
+        link_hash="expired-public-session",
+        is_active=True,
+        fecha_fin=date.today() - timedelta(days=1),
+    )
+    session.add(expired_session)
+    session.commit()
+
+    response_payload = {
+        "demographics": {
+            "age_range": "26-35",
+            "gender": "Masculino",
+            "department": "Operaciones",
+            "position": "Operativo",
+        },
+        "answers": {f"q{i}": "No" for i in range(1, 21)},
+    }
+
+    get_response = client.get("/api/survey/public/expired-public-session")
+    post_response = client.post(
+        "/api/survey/public/expired-public-session",
+        json=response_payload,
+    )
+
+    assert get_response.status_code == 404
+    assert post_response.status_code == 404
+    assert session.query(SurveyResponse).filter(
+        SurveyResponse.survey_session_id == expired_session.id
+    ).count() == 0
+
+
+def test_survey_expiration_date_is_inclusive(client, session):
+    closing_today = SurveySession(
+        company_id=1,
+        guide_type="GUIA_II",
+        link_hash="closing-today-session",
+        is_active=True,
+        fecha_fin=date.today(),
+    )
+    session.add(closing_today)
+    session.commit()
+
+    response = client.get("/api/survey/public/closing-today-session")
+
+    assert response.status_code == 200
+    assert is_survey_session_open(closing_today, as_of=date.today()) is True
+    assert is_survey_session_open(
+        closing_today,
+        as_of=date.today() + timedelta(days=1),
+    ) is False
+
 def test_survey_public_authentication_and_submit(client, session):
     # Setup a GUIA_I session with a secret key in DB
     survey_sess = SurveySession(
@@ -228,4 +321,3 @@ def test_get_uploads_dir(monkeypatch):
     # Under test execution, get_uploads_dir should resolve database URL path
     # and put uploads inside the persistent /app/data/uploads folder.
     assert get_uploads_dir() == "/app/data/uploads"
-

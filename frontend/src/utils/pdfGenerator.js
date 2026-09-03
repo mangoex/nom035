@@ -1,6 +1,7 @@
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
 import api from "./api";
+import { buildReportPeriodLines } from "./reportPeriod";
 
 // Initialize fonts
 if (pdfFonts && pdfFonts.pdfMake) {
@@ -33,8 +34,9 @@ const getImageDataUrl = async (url) => {
  * @param {Object} stats - The aggregated statistics from backend
  * @param {Object} company - The company information
  * @param {Object} user - The authenticated user (consultant or admin)
+ * @param {Object} reportContext - The selected survey session and included responses
  */
-export const generateNom035Report = async (stats, company, user) => {
+export const generateNom035Report = async (stats, company, user, reportContext = {}) => {
   if (!company || !stats) {
     alert("Faltan datos para generar el reporte.");
     return;
@@ -48,6 +50,7 @@ export const generateNom035Report = async (stats, company, user) => {
     month: 'long',
     day: 'numeric'
   });
+  const reportPeriodLines = buildReportPeriodLines(reportContext);
 
   const isGuiaIII = company.employee_count > 50;
   const guideName = isGuiaIII ? "Guía de Referencia III" : "Guía de Referencia II";
@@ -166,6 +169,7 @@ export const generateNom035Report = async (stats, company, user) => {
         margin: [0, 0, 0, 10]
       },
       { text: "Cumplimiento del Numeral 7.7 de la Norma Oficial Mexicana NOM-035-STPS-2018\n\n", style: "subTitle" },
+      { text: reportPeriodLines.join("\n"), style: "reportPeriod" },
 
       { text: "A) DATOS DEL CENTRO DE TRABAJO VERIFICADO", style: "sectionTitle" },
       {
@@ -307,6 +311,14 @@ export const generateNom035Report = async (stats, company, user) => {
         alignment: "center",
         italics: true,
         color: "#64748b"
+      },
+      reportPeriod: {
+        fontSize: 10,
+        bold: true,
+        alignment: "center",
+        lineHeight: 1.35,
+        marginBottom: 12,
+        color: "#334155"
       },
       sectionTitle: {
         fontSize: 13,

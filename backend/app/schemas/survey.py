@@ -37,6 +37,24 @@ class SurveySessionOut(BaseModel):
     class Config:
         from_attributes = True
 
+
+class SurveySessionReportContextOut(BaseModel):
+    id: int
+    company_id: int
+    guide_type: str
+    is_active: bool
+    recopilador: Optional[str] = None
+    creador: Optional[str] = None
+    cedula_creador: Optional[str] = None
+    fecha_fin: Optional[datetime.date] = None
+    created_at: datetime.datetime
+    response_count: int = 0
+    accepting_responses: bool
+    closing_has_occurred: bool
+
+    class Config:
+        from_attributes = True
+
 class SurveyResponseCreate(BaseModel):
     demographics: DemographicsSchema
     # dict where keys are 'q1', 'q2', etc., and values are strings ("Siempre", "Nunca", etc.) or ints

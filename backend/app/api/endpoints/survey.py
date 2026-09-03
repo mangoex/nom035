@@ -9,11 +9,37 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, defer
 from backend.app.db.session import get_db
 from backend.app.db.models import User, Company, SurveySession, SurveyResponse, ActionPlan
-from backend.app.schemas.survey import SurveySessionOut, SurveyResponseCreate, SurveySessionCreate
+from backend.app.schemas.survey import (
+    SurveySessionCreate,
+    SurveySessionOut,
+    SurveySessionReportContextOut,
+    SurveyResponseCreate,
+)
 from backend.app.core.auth import get_current_user, get_current_admin
 from backend.app.core.nom035_engine import calculate_survey_scores, evaluate_guia_i
+from backend.app.core.survey_sessions import (
+    is_survey_session_open,
+    survey_session_closing_has_occurred,
+)
 
 router = APIRouter()
+
+
+def build_survey_session_report_context(session: SurveySession) -> dict:
+    return {
+        "id": session.id,
+        "company_id": session.company_id,
+        "guide_type": session.guide_type,
+        "is_active": session.is_active,
+        "recopilador": session.recopilador,
+        "creador": session.creador,
+        "cedula_creador": session.cedula_creador,
+        "fecha_fin": session.fecha_fin,
+        "created_at": session.created_at,
+        "response_count": session.response_count,
+        "accepting_responses": is_survey_session_open(session),
+        "closing_has_occurred": survey_session_closing_has_occurred(session),
+    }
 
 # --- MAINTENANCE ENDPOINTS ---
 
@@ -108,6 +134,21 @@ def get_survey_sessions(
             pass
 
     return query.order_by(SurveySession.created_at.desc()).all()
+
+
+@router.get("/sessions/{session_id}", response_model=SurveySessionReportContextOut)
+def get_survey_session_report_context(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_admin),
+):
+    session = db.query(SurveySession).filter(
+        SurveySession.id == session_id,
+        SurveySession.company_id == current_user.company_id,
+    ).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Encuesta no encontrada.")
+    return build_survey_session_report_context(session)
 
 @router.get("/sessions/{session_id}/export-excel")
 def export_session_results_excel(
@@ -377,10 +418,9 @@ def get_public_session_details(
 ):
     session = db.query(SurveySession).filter(
         SurveySession.link_hash == link_hash,
-        SurveySession.is_active == True
     ).first()
     
-    if not session:
+    if not session or not is_survey_session_open(session):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Liga de encuesta no válida o expirada."
@@ -404,10 +444,9 @@ def submit_public_response(
 ):
     session = db.query(SurveySession).filter(
         SurveySession.link_hash == link_hash,
-        SurveySession.is_active == True
     ).first()
     
-    if not session:
+    if not session or not is_survey_session_open(session):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Liga de encuesta no válida o expirada."
