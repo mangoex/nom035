@@ -9,6 +9,9 @@ La evidencia separa definición, implementación, ejecución, aprobación local 
 | EVD-003 | 2026-09-02 | `npm run test:unit`, `npm run lint`, `npm run build` | 5 pruebas passed; lint 0; build 0 con advertencia de tamaño de bundle | passed |
 | EVD-004 | 2026-09-02 | `git diff --check`, validación Humanio estricta y evaluador de readiness del framework | diff check passed; validador 0 errores/0 advertencias; evaluador 5 casos aprobados | passed |
 | EVD-005 | Sin ejecutar | Revisión visual del PDF, CI, despliegue y prueba productiva | No existe evidencia | defined |
+| EVD-006 | 2026-09-18 | Focal RED backend y frontend para CHG-002 | Backend: AssertionError (clave critical_dimensions_by_department faltante); frontend: ERR_MODULE_NOT_FOUND para criticalDimensions.js | executed |
+| EVD-007 | 2026-09-18 | Pytest backend suite test_surveys.py (CHG-002) | 8 pruebas passed (100% de la suite de encuestas); cálculo de dimensiones críticas verificado | passed |
+| EVD-008 | 2026-09-18 | Frontend unit tests, linting y build (CHG-002) | 10 pruebas passed en node --test (5 nuevas + 5 existentes); eslint 0 errores; vite build código 0 | passed |
 
 ## EVD-001 — RED previo a implementación
 
@@ -38,8 +41,26 @@ La evidencia separa definición, implementación, ejecución, aprobación local 
 
 - No ejecutado: PDF renderizado en navegador con datos representativos, CI remoto, despliegue, rollback real y prueba productiva.
 
+## EVD-006 — RED CHG-002
+
+- Backend: `py -m pytest backend/tests/test_surveys.py -k "test_stats_critical_dimensions_by_department"` arrojó `AssertionError: assert 'critical_dimensions_by_department' in ...` demostrando ausencia inicial de la funcionalidad.
+- Frontend: `node --test src/utils/criticalDimensions.test.js` arrojó `ERR_MODULE_NOT_FOUND` previo a la creación del módulo utilitario.
+
+## EVD-007 — Backend GREEN CHG-002
+
+- Comando: `$env:SECRET_KEY="test-secret-key-12345678901234567890"; py -m pytest backend/tests/test_surveys.py`
+- Resultado: 8 passed en 4.45s.
+- Verificación: agregación de dimensiones críticas (≥ Medio) por departamento confirmada, exclusión de niveles Nulo y Bajo comprobada, y consistencia de baremos evaluada.
+
+## EVD-008 — Frontend GREEN CHG-002
+
+- Pruebas unitarias: `node --test src/utils/*.test.js` -> 10 passed (5 nuevas de criticalDimensions + 5 de reportPeriod).
+- ESLint: `npm.cmd run lint` -> código de salida 0 sin errores.
+- Vite build: `npm.cmd run build` -> código de salida 0 (éxito en 10.50s).
+
 ## Decisión de readiness
 
-- Implementación local: Gate 4 satisfecho con evidencia EVD-002 a EVD-004.
+- Implementación local CHG-001: Gate 4 satisfecho con evidencia EVD-002 a EVD-004.
+- Implementación local CHG-002: Gate 4 satisfecho con evidencia EVD-006 a EVD-008.
 - Producción: NOT READY.
-- Motivo: EVD-005, aprobación humana y Gate 5 no están ejecutados ni autorizados.
+- Motivo: EVD-005, aprobación humana y Gate 5 no están ejecutados ni autorizados para despliegue productivo.

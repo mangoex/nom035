@@ -36,7 +36,39 @@ Decisión vigente: `docs/adr/ADR-001-fecha-cierre-inclusiva.md`.
 - Entradas: sesión, respuestas, fecha de generación inyectable.
 - Salida: líneas de encabezado consumidas por `pdfGenerator.js`.
 
+### SDD-CMP-005 — Agregador departamental de dimensiones (Backend)
+
+- Responsabilidad: agrupar los puntajes de cada dimensión por departamento en las respuestas filtradas, promediarlos, calcular el nivel de riesgo según los baremos normativos (Guía II / Guía III) y filtrar las dimensiones con riesgo `Medio`, `Alto` o `Muy Alto`.
+- Cubre: PRD-FR-006, PRD-NFR-004, PRD-NFR-005, ADR-002.
+- Entradas: respuestas con `calculated_scores.dimension_scores` y `demographics.department`, guía activa (`GUIA_II` o `GUIA_III`).
+- Salida: lista `critical_dimensions_by_department = [{ department, dimension, score, risk, responses_count }]`.
+
+### SDD-CMP-006 — Control de filtro y panel de focos rojos (Frontend)
+
+- Responsabilidad: proveer el control de alternancia en la barra de filtros del Dashboard y renderizar la vista de dimensiones críticas desglosadas por departamento.
+- Cubre: PRD-FR-007, PRD-FR-008, PRD-NFR-004.
+- Entradas: `stats.critical_dimensions_by_department`, estado del filtro (`only_critical_dimensions`), selector departamental activo (`filters.department`).
+- Salida: tarjetas interactivas de focos rojos, filtros sincronizados y señal de representatividad estadística cuando `responses_count < 3`.
+
 ## Contratos
+
+### GET `/api/survey/stats` y `/api/consultant/survey-sessions/{session_id}/stats`
+
+- Parámetros: conserva los filtros existentes (`age_range`, `gender`, `department`, `position`, `start_date`, `end_date`, `survey_session_id`, `clave`).
+- Extensión del payload:
+  ```json
+  {
+    "critical_dimensions_by_department": [
+      {
+        "department": "Operaciones",
+        "dimension": "Carga de trabajo",
+        "score": 14.5,
+        "risk": "Alto",
+        "responses_count": 8
+      }
+    ]
+  }
+  ```
 
 ### GET `/api/survey/sessions/{session_id}`
 

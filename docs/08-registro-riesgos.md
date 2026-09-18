@@ -16,6 +16,7 @@
 | RSK-004 | Se filtra contexto de una sesión ajena | Baja | Crítico | Autenticación backend, filtro por empresa y prueba negativa | Backend | mitigated local |
 | RSK-005 | Un reporte agregado sugiere un cierre único inexistente | Media | Alto | Mostrar min/max de respuestas y omitir cierre único | Producto | mitigated local |
 | RSK-006 | La liberación se confunde con validación local | Media | Alto | Gate 5 y aprobación humana permanecen explícitamente pendientes | Responsable técnico | open |
+| RSK-007 | Inferencia sobre trabajadores individuales en departamentos con muestra muy reducida (< 3) | Media | Alto | Mostrar conteo de respuestas por departamento y señal de representatividad estadística (PRD-NFR-004) | Frontend / Producto | mitigated local |
 
 ## Riesgo residual
 
@@ -46,3 +47,7 @@ Definido y mitigado mediante rango min/max de respuestas.
 ### RSK-006 — Confusión entre validación local y producción
 
 Definido y abierto hasta contar con Gate 5 y aprobación humana.
+
+### RSK-007 — Inferencia individual en departamentos reducidos
+
+Definido y mitigado en el diseño SDD-CMP-006 mostrando el tamaño de muestra y alertando baja representatividad.

@@ -36,6 +36,7 @@ import {
   Legend
 } from "recharts";
 import { QUESTIONS_GUIA_II, QUESTIONS_GUIA_III } from "../utils/questions";
+import { filterCriticalDimensions, hasLowSampleWarning } from "../utils/criticalDimensions";
 import api from "../utils/api";
 import Sidebar from "../components/Sidebar";
 import ThemeToggle from "../components/ThemeToggle";
@@ -138,6 +139,7 @@ export default function Dashboard({ consultantMode = false }) {
     start_date: "",
     end_date: ""
   });
+  const [onlyCriticalDimensions, setOnlyCriticalDimensions] = useState(false);
   const [selectedRows, setSelectedRows] = useState([]);
   const [expandedDimensions, setExpandedDimensions] = useState({});
 
@@ -329,6 +331,7 @@ export default function Dashboard({ consultantMode = false }) {
     setComparisonSessionId("");
     setComparisonStats(null);
     setFilters({ age_range: "", gender: "", department: "", position: "", start_date: "", end_date: "" });
+    setOnlyCriticalDimensions(false);
   };
 
   const handleFilterChange = (e) => {
@@ -337,6 +340,7 @@ export default function Dashboard({ consultantMode = false }) {
 
   const clearFilters = () => {
     setFilters({ age_range: "", gender: "", department: "", position: "", start_date: "", end_date: "" });
+    setOnlyCriticalDimensions(false);
   };
 
   const handleSelectAll = (e) => {
@@ -460,6 +464,15 @@ export default function Dashboard({ consultantMode = false }) {
     Comparativa: comparisonStats?.dimension_averages?.[name],
     Riesgo: stats?.dimension_risks?.[name] || "Nulo"
   }));
+
+  const criticalDimensionsList = filterCriticalDimensions(
+    stats?.critical_dimensions_by_department || [],
+    { department: filters.department }
+  );
+
+  const displayedRadarDimensions = onlyCriticalDimensions
+    ? radarDataDimensions.filter(dim => ["Medio", "Alto", "Muy Alto"].includes(dim.Riesgo))
+    : radarDataDimensions;
 
   // Extract available filters (dynamic)
   const availableFilters = stats?.available_filters || { age_ranges: [], genders: [], departments: [], positions: [] };
@@ -618,6 +631,33 @@ export default function Dashboard({ consultantMode = false }) {
             <span style={{ fontSize: "13px", color: "var(--text-secondary)" }}>Hasta:</span>
             <input type="date" name="end_date" value={filters.end_date} onChange={handleFilterChange} className="form-input" style={{ padding: "8px", width: "130px" }} />
           </div>
+
+          {/* PRD-FR-007: Filtro de dimensiones críticas (≥ Medio) */}
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "13px",
+              fontWeight: "600",
+              cursor: "pointer",
+              color: onlyCriticalDimensions ? "var(--color-danger)" : "var(--text-secondary)",
+              padding: "6px 12px",
+              borderRadius: "6px",
+              border: onlyCriticalDimensions ? "1px solid var(--color-danger)" : "1px solid var(--border-color)",
+              backgroundColor: onlyCriticalDimensions ? "rgba(239, 68, 68, 0.08)" : "transparent",
+              transition: "all 0.2s ease"
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={onlyCriticalDimensions}
+              onChange={(e) => setOnlyCriticalDimensions(e.target.checked)}
+              style={{ cursor: "pointer" }}
+            />
+            <ShieldAlert size={16} style={{ color: onlyCriticalDimensions ? "var(--color-danger)" : "currentColor" }} />
+            Dimensiones en riesgo (≥ Medio)
+          </label>
 
           {/* Botón limpiar filtros */}
           <button 
@@ -792,15 +832,96 @@ export default function Dashboard({ consultantMode = false }) {
               </div>
             </div>
 
+            {/* PRD-FR-008 & SDD-CMP-006: Panel de Focos Rojos (Dimensiones Críticas por Departamento) */}
+            {onlyCriticalDimensions && (
+              <div className="glass-card animate-fade-in" style={{ padding: "20px", marginBottom: "24px", borderLeft: "4px solid var(--color-danger)" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <ShieldAlert size={22} style={{ color: "var(--color-danger)" }} />
+                      <h3 style={{ fontSize: "17px", fontWeight: "800", color: "var(--text-primary)" }}>
+                        Focos Rojos: Dimensiones Críticas por Departamento (≥ Medio)
+                      </h3>
+                    </div>
+                    <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                      Dimensiones con nivel de riesgo Medio, Alto o Muy Alto que requieren plan de acción e intervención según la NOM-035.
+                      {filters.department && <span> Filtrado por departamento: <strong>{filters.department}</strong>.</span>}
+                    </p>
+                  </div>
+                  <span style={{ fontSize: "12px", fontWeight: "700", padding: "4px 12px", borderRadius: "12px", backgroundColor: "rgba(239, 68, 68, 0.12)", color: "var(--color-danger)" }}>
+                    {criticalDimensionsList.length} dimensión(es) crítica(s)
+                  </span>
+                </div>
+
+                {criticalDimensionsList.length > 0 ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px" }}>
+                    {criticalDimensionsList.map((item, idx) => {
+                      const lowSample = hasLowSampleWarning(item);
+                      return (
+                        <div
+                          key={`${item.department}-${item.dimension}-${idx}`}
+                          style={{
+                            padding: "14px 16px",
+                            borderRadius: "8px",
+                            backgroundColor: RISK_COLORS[item.risk] ? `${RISK_COLORS[item.risk]}12` : "var(--bg-secondary)",
+                            border: `1px solid ${RISK_COLORS[item.risk] || "var(--border-color)"}`,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px"
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px" }}>
+                            <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-primary)" }}>
+                              {item.dimension}
+                            </span>
+                            <span style={{
+                              fontSize: "11px",
+                              fontWeight: "800",
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                              backgroundColor: RISK_COLORS[item.risk] || "#cbd5e1",
+                              color: "#fff",
+                              whiteSpace: "nowrap"
+                            }}>
+                              {item.risk}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", color: "var(--text-secondary)" }}>
+                            <span>Depto: <strong style={{ color: "var(--text-primary)" }}>{item.department}</strong></span>
+                            <span>Puntaje: <strong style={{ color: "var(--text-primary)" }}>{item.score}</strong></span>
+                          </div>
+                          {lowSample && (
+                            <span style={{ fontSize: "11px", color: "#f59e0b", display: "flex", alignItems: "center", gap: "4px", marginTop: "2px" }}>
+                              ⚠️ Muestra reducida ({item.responses_count} resp.). Interpretar con reserva estadística.
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ padding: "32px 20px", textAlign: "center", backgroundColor: "rgba(16, 185, 129, 0.08)", borderRadius: "8px" }}>
+                    <ClipboardCheck size={36} style={{ color: "var(--color-success)", margin: "0 auto 8px" }} />
+                    <p style={{ fontWeight: "700", color: "var(--color-success)", fontSize: "15px" }}>
+                      No se encontraron dimensiones con nivel de riesgo Medio, Alto o Muy Alto
+                    </p>
+                    <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginTop: "4px" }}>
+                      Las dimensiones evaluadas para los filtros aplicados se encuentran en niveles Nulo o Bajo.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Dimensions Radar Chart & Heatmap */}
-            {radarDataDimensions.length > 0 && (
+            {displayedRadarDimensions.length > 0 ? (
               <div className="results-dimensions-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: "24px", marginBottom: "24px" }}>
                 {/* Radar Chart */}
                 <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                   <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Huella de Riesgo por Dimensiones</h3>
                   <div style={{ width: "100%", height: "450px", position: "relative" }}>
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart cx="50%" cy="50%" outerRadius="65%" data={radarDataDimensions}>
+                      <RadarChart cx="50%" cy="50%" outerRadius="65%" data={displayedRadarDimensions}>
                         <PolarGrid stroke="var(--border-color)" />
                         <PolarAngleAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 10 }} />
                         <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={{ fill: "var(--text-muted)", fontSize: 10 }} />
@@ -817,7 +938,7 @@ export default function Dashboard({ consultantMode = false }) {
                 <div className="glass-card" style={{ display: "flex", flexDirection: "column", gap: "16px", overflowY: "auto", maxHeight: "520px" }}>
                   <h3 style={{ fontSize: "16px", fontWeight: "700" }}>Mapa de Calor: Dimensiones de Riesgo (Anexos)</h3>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                    {radarDataDimensions.map((dim, i) => {
+                    {displayedRadarDimensions.map((dim, i) => {
                       const isExpanded = expandedDimensions[dim.fullName];
                       const questionIds = stats.dimension_mapping?.[dim.fullName] || [];
                       const questionsList = selectedSession?.guide_type === "GUIA_II" ? QUESTIONS_GUIA_II : QUESTIONS_GUIA_III;
@@ -860,6 +981,10 @@ export default function Dashboard({ consultantMode = false }) {
                   </div>
                 </div>
               </div>
+            ) : (
+              onlyCriticalDimensions && (
+                <div style={{ marginBottom: "24px" }} />
+              )
             )}
 
             {/* Responses Table */}

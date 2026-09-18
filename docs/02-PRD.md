@@ -78,9 +78,57 @@ Las sesiones legadas con fecha nula y los reportes agregados deben degradar de f
 
 Métrica: prueba de unidad para periodo no disponible y regresión backend existente aprobada.
 
+## Historia CHG-002
+
+Como responsable de evaluación NOM-035, administrador de empresa o consultor autorizado, quiero filtrar en el Dashboard las dimensiones psicosociales que obtuvieron un nivel de riesgo de Medio para arriba e identificar en qué departamento se originaron, para focalizar oportunamente las medidas de mitigación y planes de acción en las áreas prioritarias.
+
+## Requisitos funcionales (CHG-002)
+
+### PRD-FR-006 — Agregación departamental de dimensiones en backend
+
+El cálculo de estadísticas de encuestas (`/api/survey/stats` y endpoint de consultor) debe calcular el puntaje promedio y nivel de riesgo de cada dimensión por departamento según los umbrales de la guía activa (Guía II o Guía III), retornando la lista de dimensiones críticas (`critical_dimensions_by_department`) que alcanzaron nivel de riesgo `Medio`, `Alto` o `Muy Alto`.
+
+Criterios de aceptación:
+- Los baremos aplicados corresponden a la guía de la sesión evaluada (o guía activa de la empresa).
+- Se excluyen de esta lista las dimensiones con nivel `Nulo` o `Bajo`.
+- Cada elemento devuelto incluye: `department`, `dimension`, `score`, `risk` y `responses_count`.
+
+### PRD-FR-007 — Control de filtro prioritario en Dashboard
+
+La barra de filtros del Dashboard debe contar con una opción (toggle/checkbox) para activar o desactivar la visualización de dimensiones de riesgo prioritario (≥ Medio).
+
+Criterios de aceptación:
+- Por defecto, el filtro se encuentra inactivo mostrando la vista habitual.
+- Al activarse, destaca o filtra los resultados críticos departamentales.
+- Al pulsar "Limpiar Filtros", se desactiva junto con el resto de filtros.
+
+### PRD-FR-008 — Desglose visual Dimensión-Departamento
+
+El Dashboard debe presentar un panel o tarjeta que liste claramente las dimensiones críticas correlacionadas con el departamento donde se originaron.
+
+Criterios de aceptación:
+- Muestra el nombre de la dimensión, departamento, puntaje promedio y nivel de riesgo con el color normativo correspondiente.
+- Permite la interacción conjunta con el selector de departamentos (si se selecciona un departamento específico, la vista se acota a este).
+- En caso de no existir dimensiones con riesgo Medio o superior, presenta un mensaje de estado vacío claro y tranquilizador.
+
+## Requisitos no funcionales (CHG-002)
+
+### PRD-NFR-004 — Confidencialidad y protección de anonimato
+
+Para cumplir con `PROJECT-PR-004`, las agregaciones departamentales deben mostrar el número de respuestas evaluadas por departamento. Si un departamento tiene menos de 3 respuestas, la interfaz debe mostrar un indicador de representatividad estadística para evitar deducciones sobre individuos.
+
+Métrica: presencia del conteo de respuestas por departamento y ausencia de datos personales identificables.
+
+### PRD-NFR-005 — Fidelidad normativa de baremos
+
+La categorización de riesgo (`Medio`, `Alto`, `Muy Alto`) debe realizarse con exactitud contra los umbrales oficiales de la NOM-035 para cada dimensión evaluada.
+
+Métrica: pruebas unitarias que validen casos en límites inferiores y superiores de cada rango normativo.
+
 ## Criterios de éxito
 
-- Cada PDF emitido comunica claramente el alcance temporal de los resultados.
-- La API impide respuestas posteriores al cierre programado.
-- No se modifica el esquema ni el cálculo NOM-035.
-- Gate 4 cuenta con evidencia local ejecutada; Gate 5 continúa sujeto a aprobación y despliegue.
+- Cada PDF emitido comunica claramente el alcance temporal de los resultados (CHG-001).
+- La API impide respuestas posteriores al cierre programado (CHG-001).
+- El Dashboard identifica de forma inmediata qué dimensiones y departamentos se encuentran en riesgo Medio o superior (CHG-002).
+- No se altera la persistencia ni se introducen migraciones de base de datos.
+- Gates de calidad y pruebas locales completadas con evidencia documentada.

@@ -350,3 +350,117 @@ def test_get_uploads_dir(monkeypatch):
     # Under test execution, get_uploads_dir should resolve database URL path
     # and put uploads inside the persistent /app/data/uploads folder.
     assert get_uploads_dir() == "/app/data/uploads"
+
+
+def test_stats_critical_dimensions_by_department(client, session):
+    """TDD-TC-008 & TDD-TC-009: Agregación de dimensiones críticas (≥ Medio) por departamento."""
+    survey_sess = SurveySession(
+        company_id=1,
+        guide_type="GUIA_II",
+        link_hash="hash-critical-dims",
+        is_active=True,
+        fecha_fin=date.today(),
+    )
+    session.add(survey_sess)
+    session.flush()
+
+    # Operaciones: 2 respuestas
+    session.add(SurveyResponse(
+        company_id=1,
+        survey_session_id=survey_sess.id,
+        demographics={
+            "age_range": "26-35",
+            "gender": "Masculino",
+            "department": "Operaciones",
+            "position": "Operativo",
+        },
+        answers={},
+        calculated_scores={
+            "final_score": 60,
+            "final_risk": "Medio",
+            "dimension_scores": {
+                "Cargas cuantitativas": 5.0,
+                "Condiciones peligrosas e inseguras": 0.0,
+            }
+        },
+    ))
+    session.add(SurveyResponse(
+        company_id=1,
+        survey_session_id=survey_sess.id,
+        demographics={
+            "age_range": "36-45",
+            "gender": "Femenino",
+            "department": "Operaciones",
+            "position": "Operativo",
+        },
+        answers={},
+        calculated_scores={
+            "final_score": 60,
+            "final_risk": "Medio",
+            "dimension_scores": {
+                "Cargas cuantitativas": 5.0,
+                "Condiciones peligrosas e inseguras": 1.0,
+            }
+        },
+    ))
+
+    # Administración: 1 respuesta
+    session.add(SurveyResponse(
+        company_id=1,
+        survey_session_id=survey_sess.id,
+        demographics={
+            "age_range": "26-35",
+            "gender": "Femenino",
+            "department": "Administración",
+            "position": "Administrativo",
+        },
+        answers={},
+        calculated_scores={
+            "final_score": 40,
+            "final_risk": "Bajo",
+            "dimension_scores": {
+                "Jornadas de trabajo extensas": 4.5,
+                "Cargas cuantitativas": 2.0,
+            }
+        },
+    ))
+    session.commit()
+
+    # Consulta global/sesión
+    response = client.get(f"/api/survey/stats?survey_session_id={survey_sess.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert "critical_dimensions_by_department" in data
+    critical = data["critical_dimensions_by_department"]
+
+    assert len(critical) >= 2
+    for item in critical:
+        assert item["risk"] in ["Medio", "Alto", "Muy Alto"]
+        assert item["responses_count"] > 0
+
+    operaciones_cargas = next(
+        (x for x in critical if x["department"] == "Operaciones" and x["dimension"] == "Cargas cuantitativas"), None
+    )
+    assert operaciones_cargas is not None
+    assert operaciones_cargas["risk"] == "Alto"
+    assert operaciones_cargas["score"] == 5.0
+    assert operaciones_cargas["responses_count"] == 2
+
+    admin_jornadas = next(
+        (x for x in critical if x["department"] == "Administración" and x["dimension"] == "Jornadas de trabajo extensas"), None
+    )
+    assert admin_jornadas is not None
+    assert admin_jornadas["risk"] == "Medio"
+    assert admin_jornadas["score"] == 4.5
+    assert admin_jornadas["responses_count"] == 1
+
+    # Excluye dimensiones Nulo/Bajo
+    assert not any(x["dimension"] == "Condiciones peligrosas e inseguras" for x in critical)
+
+    # Consulta con filtro de departamento
+    resp_filtered = client.get(f"/api/survey/stats?survey_session_id={survey_sess.id}&department=Operaciones")
+    assert resp_filtered.status_code == 200
+    crit_filtered = resp_filtered.json()["critical_dimensions_by_department"]
+    assert all(x["department"] == "Operaciones" for x in crit_filtered)
+    assert any(x["dimension"] == "Cargas cuantitativas" for x in crit_filtered)
+    assert not any(x["department"] == "Administración" for x in crit_filtered)

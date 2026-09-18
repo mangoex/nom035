@@ -657,6 +657,7 @@ def build_survey_statistics(
             "domain_risks": {},
             "dimension_averages": {},
             "dimension_risks": {},
+            "critical_dimensions_by_department": [],
             "available_filters": available_filters
         }
         
@@ -678,12 +679,18 @@ def build_survey_statistics(
     
     department_scores_sum = {}
     department_counts = {}
+    department_responses_counts = {}
+    department_dimension_scores_sum = {}
+    department_dimension_counts = {}
 
     question_scores_sum = {}
     question_counts = {}
     
     for r in responses:
         scores = r.calculated_scores
+        dept = r.demographics.get("department", "Sin Departamento") if r.demographics else "Sin Departamento"
+        department_responses_counts[dept] = department_responses_counts.get(dept, 0) + 1
+
         if "requires_attention" in scores:
             if scores["requires_attention"]:
                 clinical_referrals += 1
@@ -703,12 +710,16 @@ def build_survey_statistics(
                 domain_counts[dom] = domain_counts.get(dom, 0) + 1
 
         if "dimension_scores" in scores:
+            if dept not in department_dimension_scores_sum:
+                department_dimension_scores_sum[dept] = {}
+                department_dimension_counts[dept] = {}
             for dim, val in scores["dimension_scores"].items():
                 dimension_scores_sum[dim] = dimension_scores_sum.get(dim, 0.0) + val
                 dimension_counts[dim] = dimension_counts.get(dim, 0) + 1
+                department_dimension_scores_sum[dept][dim] = department_dimension_scores_sum[dept].get(dim, 0.0) + val
+                department_dimension_counts[dept][dim] = department_dimension_counts[dept].get(dim, 0) + 1
                 
         if "final_score" in scores:
-            dept = r.demographics.get("department", "Sin Departamento") if r.demographics else "Sin Departamento"
             department_scores_sum[dept] = department_scores_sum.get(dept, 0.0) + scores["final_score"]
             department_counts[dept] = department_counts.get(dept, 0) + 1
 
@@ -748,6 +759,33 @@ def build_survey_statistics(
         dim: get_risk_level(dimension_averages[dim], thresholds.get("dimensions", {}).get(dim, [3, 4, 5, 6]))
         for dim in dimension_averages
     }
+
+    # SDD-CMP-005: Dimensiones con riesgo crítico (≥ Medio: Medio, Alto, Muy Alto) agrupadas por departamento
+    critical_dimensions_by_department = []
+    risk_rank = {"Muy Alto": 4, "Alto": 3, "Medio": 2, "Bajo": 1, "Nulo": 0}
+
+    for dept, dims in department_dimension_scores_sum.items():
+        resp_count = department_responses_counts.get(dept, 0)
+        for dim, score_sum in dims.items():
+            count = department_dimension_counts[dept][dim]
+            if count == 0:
+                continue
+            avg_score = round(score_sum / count, 2)
+            dim_threshold = thresholds.get("dimensions", {}).get(dim, [3, 4, 5, 6])
+            risk_lvl = get_risk_level(avg_score, dim_threshold)
+            if risk_lvl in ["Medio", "Alto", "Muy Alto"]:
+                critical_dimensions_by_department.append({
+                    "department": dept,
+                    "dimension": dim,
+                    "score": avg_score,
+                    "risk": risk_lvl,
+                    "responses_count": resp_count
+                })
+
+    critical_dimensions_by_department.sort(
+        key=lambda item: (risk_rank.get(item["risk"], 0), item["score"]),
+        reverse=True
+    )
     
     final_risk_distribution = {
         risk: round((count / total) * 100, 2)
@@ -787,6 +825,7 @@ def build_survey_statistics(
         "domain_risks": domain_risks_dict,
         "dimension_averages": dimension_averages,
         "dimension_risks": dimension_risks_dict,
+        "critical_dimensions_by_department": critical_dimensions_by_department,
         "department_averages": department_averages,
         "department_risks": department_risks,
         "available_filters": available_filters,
